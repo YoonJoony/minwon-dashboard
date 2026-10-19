@@ -10,6 +10,9 @@
 흡수 가능성: 과부하 부서의 초과 업무(초과 접수 × 적체 전환율)를 지원 가능 부서의 여유(평소 − 실제 접수)로 메울 수 있는지.
 평가 기간: 2018-01 ~ 2026-10 (앞의 2년은 기준값 계산에 사용).
 
+마지막에 화면(인력 지원 권고)과 같은 기준으로도 다시 계산합니다: 전체 접수(일별 표), 지원 필요 = 접수 +10% 이상 부서 전부.
+화면 근거 창의 인력 지원 수치는 이 화면 기준 결과입니다.
+
 실행: uv run python analysis/verify_complementarity.py
 """
 import sys
@@ -99,6 +102,45 @@ def report(label: str, s: pd.DataFrame, intake: pd.DataFrame, base: pd.DataFrame
         for q, ms in (("겨울", [12, 1, 2]), ("봄", [3, 4, 5]), ("여름", [6, 7, 8]), ("가을", [9, 10, 11]))))
 
 
+def screen_rule(df: pd.DataFrame, y_week: pd.DataFrame) -> None:
+    """화면(인력 지원 권고)과 같은 기준으로 주 단위 상보성을 다시 계산.
+
+    - 접수: 일별 전체 접수(data/processed/daily_agency_weather.csv, 화면 예측이 쓰는 표)
+    - 지원 필요: 접수 +10% 이상인 부서 전부(집중관리 + 접수증가 주의).
+      초과분 × (1 − 최근 1년 즉시 종결 비율) × 적체 전환율 (engine.dashboard.staffing과 같은 식)
+    """
+    days = pd.date_range("2016-01-01", "2026-10-11")
+    a = pd.read_csv(ROOT / "data/processed/daily_agency_weather.csv", usecols=["date", "agency", "count"], parse_dates=["date"])
+    daily = a.pivot(index="date", columns="agency", values="count").reindex(index=days, columns=AG).fillna(0)
+
+    def weekly(d: pd.DataFrame) -> pd.DataFrame:
+        w = d.resample("W-MON", label="left", closed="left").sum()
+        return w[w.index <= "2026-09-28"]
+
+    def per_day(sub: pd.DataFrame) -> pd.DataFrame:
+        return sub.groupby([sub.created.dt.normalize(), "agency"]).size().unstack(fill_value=0).reindex(
+            index=days, columns=AG, fill_value=0)
+
+    inst = weekly(per_day(df[df.instant])) / weekly(per_day(df)).replace(0, np.nan)
+    inst = inst.rolling(52, min_periods=26).mean().shift(1).fillna(0)
+    w = weekly(daily)
+    base = w.rolling(4).mean().shift(1)
+    x = w / base - 1
+    sel = w.index >= "2018-01-01"
+    s = classify(x[sel], y_week.reindex(w.index)[sel])
+    w, base, x, inst = w[sel], base[sel], x[sel], inst[sel]
+    sup = s.eq("지원 가능")
+    print("\n=== [주] 화면 기준 (전체 접수, 지원 필요량 = 초과 접수 × (1 − 즉시 종결 비율) × 적체 전환율)")
+    for label, needer in (("집중관리 부서만", s.eq("집중관리")), ("접수 +10% 이상 부서 전부 (화면 인력 지원 권고)", x >= 0.10)):
+        need = ((w - base).clip(lower=0) * (1 - inst) * pd.Series(CONV)).where(needer).sum(axis=1)
+        slack = (base - w).clip(lower=0).where(sup).sum(axis=1)
+        has = needer.any(axis=1)
+        cov = (slack / need.replace(0, np.nan)).clip(upper=1)[has]
+        print(f"  {label}: 지원 필요 부서가 있던 주 {int(has.sum())}/{len(s)}, 그중 지원 가능 부서 동시 존재 "
+              f"{(has & sup.any(axis=1)).sum() / has.sum():.0%}, 메운 비율 평균 {cov.mean():.0%}, 전부 메운 주 {(cov >= 1).mean():.0%}")
+    print(f"  부서×주 중 집중관리 비율: {s.eq('집중관리').sum().sum() / s.notna().sum().sum():.1%}")
+
+
 def main() -> None:
     df = pd.read_parquet(ROOT / "data/processed/complaint_features.parquet",
                          columns=["created", "closed", "proc_days", "agency", "instant", "status"])
@@ -133,6 +175,9 @@ def main() -> None:
         o = [NAME[a] for a in AG if s_w.loc[t, a] == "집중관리"]
         sp = [NAME[a] for a in AG if s_w.loc[t, a] == "지원 가능"]
         print(f"  {t:%Y-%m-%d} 주: 집중관리 {', '.join(o)} | 지원 가능 {', '.join(sp) or '없음'}")
+
+    if Y_MODE == "backlog":
+        screen_rule(df, y_week)
 
 
 if __name__ == "__main__":
