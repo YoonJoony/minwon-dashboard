@@ -1,0 +1,39 @@
+[project]
+name = "minwon-dashboard"
+version = "0.1.0"
+description = "민원 조기경보 대시보드 — 부서·기간별 민원 집중도 예측과 인력 연결 지원"
+requires-python = ">=3.12"
+dependencies = [
+    # API 서버
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    # 데이터
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "pyarrow>=17",
+    "duckdb>=1.1",
+    # 모델 (macOS에서 LightGBM은 `brew install libomp` 필요)
+    "scikit-learn>=1.5",
+    "lightgbm>=4.5",
+    "statsmodels>=0.14",
+    "lifelines>=0.29",
+    "scipy>=1.13",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.14.0",
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.pytest.ini_options]
+pythonpath = ["backend"]
+testpaths = ["backend/tests"]

@@ -1,0 +1,16 @@
+:root {
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  line-height: 1.5;
+  color: #1d2433;
+  background-color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.8rem;
+  margin: 0 0 4px;
+}
