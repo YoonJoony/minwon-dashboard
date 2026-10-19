@@ -6,6 +6,7 @@
 | `npm run build` | 타입 검사 후 `dist/` 생성 → FastAPI가 같은 서버에서 제공 |
 | `npm test` | Vitest (기간 계산, 숫자 표기, 상단 지표 문구, 차트 보조 계산) |
 | `npm run lint` | ESLint |
+| `npm run e2e` | Playwright 시연 화면 점검: 빌드된 `dist/`를 8000번 서버로 열어 최신 화면·시연 5단계 확인, 단계별 화면은 `e2e-screens/` (처음 한 번 `npx playwright install chromium`) |
 | `npm run gen:api` | 백엔드 응답 형식(`backend/app/schemas.py`)에서 `src/api/schema.d.ts` 다시 만들기 |
 
 ## 폴더
@@ -18,6 +19,7 @@ src/
 ├─ charts/       ECharts 훅, 예상 접수 추이·위험 매트릭스 옵션(이름표 겹침 피하기 포함)
 ├─ lib/          날짜·숫자 표기, 기간 규칙, 색, KPI 문구
 └─ hooks/        요소 폭 감시
+e2e/             Playwright 시연 화면 점검(demo.spec.ts), 준비물 확인(prereq.ts)
 ```
 
 설계와 시안 반영 내용은 [../docs/개발설계.md](../docs/개발설계.md) 8장을 보세요.

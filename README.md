@@ -57,8 +57,14 @@ uv run uvicorn app.main:app --app-dir backend               # http://127.0.0.1:8
 ```bash
 uv run pytest -q && uv run ruff check .                    # 계산 규칙·API
 cd frontend && npm test && npm run lint && npm run build    # 화면 (타입 검사 포함)
+cd frontend && npm run e2e                                  # 시연 화면 점검 (Playwright, 아래 설명)
 cd frontend && npm run gen:api                              # API 응답 형식을 바꾼 뒤 TypeScript 타입 다시 만들기
 ```
+
+`npm run e2e`는 시연 때와 같은 구성(서버 하나, 8000번)으로 최신 화면과 시연 5단계를 차례로 열어, 단계마다 콘솔 오류·외부 주소 요청이 없는지, 핵심 지표 5칸과 패널 6개가 그려지는지, "불러오기 실패"가 없는지, 차트 2개의 크기가 0이 아닌지, 남색 띠에 시나리오 제목이 나오는지 확인합니다. 시연 막대의 "다음 단계" 버튼과 부서 선택(환경보호국 → 주소에 `agency=DEP`)도 눌러 봅니다. 단계별 전체 화면(1440×900)은 `frontend/e2e-screens/`에 저장됩니다(git 제외).
+- 처음 한 번: `cd frontend && npx playwright install chromium` (점검용 브라우저. 이후에는 인터넷 없이 동작)
+- 8000번에 서버가 이미 떠 있으면 그 서버를 쓰고, 없으면 직접 띄웠다가 점검이 끝나면 끕니다.
+- 빌드된 화면(`frontend/dist`)을 확인하므로 화면 코드를 고쳤다면 `npm run build`를 먼저 하세요. 사전 계산 결과(`data/artifacts`)나 화면 빌드가 없으면 할 일을 알려 주고 건너뜁니다.
 
 ## 데이터 다시 만들기
 

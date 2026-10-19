@@ -13,6 +13,9 @@ __pycache__/
 # 프런트엔드
 frontend/node_modules/
 frontend/dist/
+# 시연 화면 점검(npm run e2e)이 찍은 단계별 화면, Playwright 실패 기록
+frontend/e2e-screens/
+frontend/test-results/
 
 # 기타
 .DS_Store

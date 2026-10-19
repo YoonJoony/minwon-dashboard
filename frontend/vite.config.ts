@@ -18,5 +18,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // 단위 테스트는 src/ 안에만 둡니다. e2e/는 Playwright 시연 화면 점검 (npm run e2e)
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 })
