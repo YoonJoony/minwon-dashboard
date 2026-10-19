@@ -4,6 +4,7 @@
 
 - 기획 기준 문서: [docs/서비스기획_정리.md](docs/서비스기획_정리.md)
 - 검증 결과 (10년치): [docs/검증결과_10년.md](docs/검증결과_10년.md)
+- 시연 리허설 검증: [docs/리허설_검증.md](docs/리허설_검증.md)
 - 데이터 설명: [data/NYC311_컬럼설명.md](data/NYC311_컬럼설명.md), [data/processed/README.md](data/processed/README.md)
 
 ## 구성
@@ -73,5 +74,8 @@ uv run python analysis/verify_forecast_alerts.py     # 실제 예보 기반 경�
 uv run python analysis/verify_capacity.py            # 처리능력·적체 전환율
 uv run python analysis/verify_nws_alerts.py          # 미국 기상청(NWS) 특보 기준 경보
 uv run python analysis/verify_complementarity.py     # 과부하·지원 가능 부서 동시 발생
+uv run python analysis/verify_matrix_y_stability.py  # 매트릭스 세로축 후보 안정성
+uv run python analysis/verify_alert_uplift.py 3      # 기상 특보 영향 부서 규칙 (1·2는 건수 보정 시험)
+uv run python analysis/rehearsal_scenarios.py       # 시연 시나리오 4개 재현, 매트릭스 그림 docs/rehearsal/
 ```
 한 달·분기 예측과 이슈 빈도 검증 결과는 [docs/검증결과_10년.md](docs/검증결과_10년.md) ①·⑤를 보세요.

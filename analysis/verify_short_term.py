@@ -23,11 +23,12 @@ OUT = ROOT / "analysis/results"
 AG = ["DCWP", "DEP", "DHS", "DOB", "DOHMH", "DOT", "DPR", "DSNY"]
 
 
-def build_rows(cnt: pd.DataFrame, w: pd.DataFrame) -> pd.DataFrame:
+def build_rows(cnt: pd.DataFrame, w: pd.DataFrame, origins: pd.DatetimeIndex | None = None) -> pd.DataFrame:
     days = cnt.index
     hol = w["is_holiday"].reindex(days).fillna(0)
     rows = []
-    origins = pd.date_range("2017-01-02", "2026-09-21", freq="W-MON")
+    if origins is None:
+        origins = pd.date_range("2017-01-02", "2026-09-21", freq="W-MON")
     for t in origins:
         if t - pd.Timedelta(days=28 * 13) < days[0]:
             continue

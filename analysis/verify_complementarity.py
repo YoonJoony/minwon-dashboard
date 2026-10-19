@@ -2,16 +2,17 @@
 
 기획안 정의를 그대로 씁니다.
 - 접수 증가율 x: 그날 접수(즉시 종결 제외) ÷ 직전 4주 같은 요일 평균 − 1   (주 단위: 그 주 ÷ 직전 4주 평균 − 1)
-- 지연 배수 y: 현재 지연 중 비율 ÷ 부서 평소(직전 52주 중앙값)
-  현재 지연 중 비율 = 최근 6개월 접수분 중 기준처리기간(부서별 P90, 매달 재계산)을 넘기고도 처리 중인 비율 (매주 월요일 측정)
-- 과부하(집중관리): x ≥ +10% 이고 y ≥ 1.5
-- 지원 가능(여유): x ≤ −10% 이고 y < 1.5 (평소보다 접수가 적고 밀린 일도 많지 않음)
+- 적체 배수 y: 처리 중 민원 수(최근 6개월 접수분, 매주 월요일) ÷ 부서 평소(직전 52주 중앙값)
+  (리허설에서 '지연 중 비율' 정의가 일부 부서에서 출렁여 바꿈. 옛 정의는 --y delay 로 실행)
+- 과부하(집중관리): x ≥ +10% 이고 y ≥ 1.3
+- 지원 가능(여유): x ≤ −10% 이고 y < 1.3 (평소보다 접수가 적고 밀린 일도 많지 않음)
 
 흡수 가능성: 과부하 부서의 초과 업무(초과 접수 × 적체 전환율)를 지원 가능 부서의 여유(평소 − 실제 접수)로 메울 수 있는지.
 평가 기간: 2018-01 ~ 2026-10 (앞의 2년은 기준값 계산에 사용).
 
 실행: uv run python analysis/verify_complementarity.py
 """
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +25,8 @@ NAME = {"DCWP": "소비자보호", "DEP": "환경보호", "DHS": "노숙자", "D
 # 적체 전환율: verify_capacity.py 결과 (보건국은 처리 기록이 고르지 않아 보수적으로 1.0)
 CONV = {"DHS": 0.11, "DEP": 0.17, "DOT": 0.27, "DCWP": 0.28, "DSNY": 0.51, "DPR": 0.66, "DOB": 0.75, "DOHMH": 1.0}
 NEVER = 1e6
+Y_MODE = "delay" if "--y" in sys.argv and sys.argv[sys.argv.index("--y") + 1] == "delay" else "backlog"
+Y_TH = 1.5 if Y_MODE == "delay" else 1.3
 
 
 def delay_ratio(df: pd.DataFrame) -> pd.DataFrame:
@@ -46,12 +49,21 @@ def delay_ratio(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out).T.reindex(columns=AG)
 
 
+def backlog_count(df: pd.DataFrame) -> pd.DataFrame:
+    """매주 월요일: 부서별 처리 중 민원 수(최근 6개월 접수분)."""
+    out = {}
+    for m in pd.date_range("2017-01-02", "2026-10-05", freq="W-MON"):
+        w = df[(df.created >= m - pd.DateOffset(months=6)) & (df.created < m)]
+        out[m] = (w.closed.isna() | (w.closed >= m)).groupby(w.agency).sum()
+    return pd.DataFrame(out).T.reindex(columns=AG).astype(float)
+
+
 def classify(x: pd.DataFrame, y: pd.DataFrame) -> pd.DataFrame:
     s = pd.DataFrame("안정", index=x.index, columns=x.columns)
-    s[(x >= 0.10) & (y < 1.5)] = "접수증가 주의"
-    s[(x < 0.10) & (y >= 1.5)] = "처리지연 주의"
-    s[(x >= 0.10) & (y >= 1.5)] = "집중관리"
-    s[(x <= -0.10) & (y < 1.5)] = "지원 가능"
+    s[(x >= 0.10) & (y < Y_TH)] = "접수증가 주의"
+    s[(x < 0.10) & (y >= Y_TH)] = "처리지연 주의"
+    s[(x >= 0.10) & (y >= Y_TH)] = "집중관리"
+    s[(x <= -0.10) & (y < Y_TH)] = "지원 가능"
     return s.where(x.notna() & y.notna())
 
 
@@ -90,9 +102,10 @@ def report(label: str, s: pd.DataFrame, intake: pd.DataFrame, base: pd.DataFrame
 def main() -> None:
     df = pd.read_parquet(ROOT / "data/processed/complaint_features.parquet",
                          columns=["created", "closed", "proc_days", "agency", "instant"])
-    dr = delay_ratio(df)
+    dr = delay_ratio(df) if Y_MODE == "delay" else backlog_count(df)
     normal = dr.rolling(52, min_periods=40).median().shift(1)
-    y_week = dr / normal.clip(lower=0.005)
+    y_week = dr / normal.clip(lower=0.005 if Y_MODE == "delay" else 1)
+    print(f"세로축: {'지연 중 비율(옛 정의)' if Y_MODE == 'delay' else '적체 배수'}, 기준 {Y_TH}배")
 
     real = df[~df.instant]
     daily = real.groupby([real.created.dt.normalize(), "agency"]).size().unstack(fill_value=0)
