@@ -1,0 +1,2186 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "스마트 민원케어 API",
+  "description": "부서·기간별 민원 집중도(예상 건수, 예상 이슈, 위험 매트릭스, 인력 지원)를 제공합니다. 데이터: 뉴욕시 311 브롱크스, Open-Meteo 기상, 미국 기상청 뉴욕 지청 특보 기준.",
+  "version": "0.2.0"
+ },
+ "paths": {
+  "/api/health": {
+   "get": {
+    "summary": "Health",
+    "description": "서버 상태와 필요한 데이터 파일이 있는지 알려 줍니다.",
+    "operationId": "health_api_health_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Health Api Health Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/meta": {
+   "get": {
+    "summary": "Meta",
+    "description": "부서 목록, 기준일 목록, 시연 시나리오, 기간 빠른 선택, 매트릭스 기준값.",
+    "operationId": "meta_api_meta_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Meta"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/summary": {
+   "get": {
+    "summary": "Summary",
+    "description": "상단 핵심 지표: 예상 접수, 기상 특보, 집중관리 부서, 처리 중 민원, 지원 필요 인원.",
+    "operationId": "summary_api_summary_get",
+    "parameters": [
+     {
+      "name": "asof",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나",
+       "title": "Asof"
+      },
+      "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나"
+     },
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "기간 시작 (기본: 기준일)",
+       "title": "Start"
+      },
+      "description": "기간 시작 (기본: 기준일)"
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "기간 끝 (기본: 기준일 + 6일, 최대 기준일 + 91일)",
+       "title": "End"
+      },
+      "description": "기간 끝 (기본: 기준일 + 6일, 최대 기준일 + 91일)"
+     },
+     {
+      "name": "agency",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^(DSNY|DEP|DOT|DOB|DOHMH|DPR|DCWP|DHS)$"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "부서 코드 (DSNY, DEP, DOT, DOB, DOHMH, DPR, DCWP, DHS). 없으면 전체",
+       "title": "Agency"
+      },
+      "description": "부서 코드 (DSNY, DEP, DOT, DOB, DOHMH, DPR, DCWP, DHS). 없으면 전체"
+     },
+     {
+      "name": "per_person_day",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "number",
+       "maximum": 200,
+       "exclusiveMinimum": 0,
+       "description": "가정값: 1인당 하루 처리 건수",
+       "default": 10,
+       "title": "Per Person Day"
+      },
+      "description": "가정값: 1인당 하루 처리 건수"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SummaryOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/forecast": {
+   "get": {
+    "summary": "Forecast",
+    "description": "선택 기간 예상 접수 건수, 80% 범위, 부서별 값, 추이(직전 실적 + 기간 예측).",
+    "operationId": "forecast_api_forecast_get",
+    "parameters": [
+     {
+      "name": "asof",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나",
+       "title": "Asof"
+      },
+      "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나"
+     },
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "기간 시작 (기본: 기준일)",
+       "title": "Start"
+      },
+      "description": "기간 시작 (기본: 기준일)"
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "기간 끝 (기본: 기준일 + 6일, 최대 기준일 + 91일)",
+       "title": "End"
+      },
+      "description": "기간 끝 (기본: 기준일 + 6일, 최대 기준일 + 91일)"
+     },
+     {
+      "name": "agency",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^(DSNY|DEP|DOT|DOB|DOHMH|DPR|DCWP|DHS)$"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "부서 코드 (DSNY, DEP, DOT, DOB, DOHMH, DPR, DCWP, DHS). 없으면 전체",
+       "title": "Agency"
+      },
+      "description": "부서 코드 (DSNY, DEP, DOT, DOB, DOHMH, DPR, DCWP, DHS). 없으면 전체"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ForecastOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/issues": {
+   "get": {
+    "summary": "Issues",
+    "description": "예상 이슈: 향후 7일 기상 특보 예보, 겨울 적설 → 봄 도로 파손, 같은 시기 이슈 급증 빈도.",
+    "operationId": "issues_api_issues_get",
+    "parameters": [
+     {
+      "name": "asof",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나",
+       "title": "Asof"
+      },
+      "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나"
+     },
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "기간 시작 (기본: 기준일)",
+       "title": "Start"
+      },
+      "description": "기간 시작 (기본: 기준일)"
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "기간 끝 (기본: 기준일 + 6일, 최대 기준일 + 91일)",
+       "title": "End"
+      },
+      "description": "기간 끝 (기본: 기준일 + 6일, 최대 기준일 + 91일)"
+     },
+     {
+      "name": "agency",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^(DSNY|DEP|DOT|DOB|DOHMH|DPR|DCWP|DHS)$"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "부서 코드 (DSNY, DEP, DOT, DOB, DOHMH, DPR, DCWP, DHS). 없으면 전체",
+       "title": "Agency"
+      },
+      "description": "부서 코드 (DSNY, DEP, DOT, DOB, DOHMH, DPR, DCWP, DHS). 없으면 전체"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IssuesOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/matrix": {
+   "get": {
+    "summary": "Risk Matrix",
+    "description": "부서 위험 매트릭스: 가로 접수 증가율, 세로 적체 배수, 사분면, 특보 표시, 80% 범위.",
+    "operationId": "risk_matrix_api_matrix_get",
+    "parameters": [
+     {
+      "name": "asof",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나",
+       "title": "Asof"
+      },
+      "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나"
+     },
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "기간 시작 (기본: 기준일)",
+       "title": "Start"
+      },
+      "description": "기간 시작 (기본: 기준일)"
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "기간 끝 (기본: 기준일 + 6일, 최대 기준일 + 91일)",
+       "title": "End"
+      },
+      "description": "기간 끝 (기본: 기준일 + 6일, 최대 기준일 + 91일)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MatrixOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/staffing": {
+   "get": {
+    "summary": "Staffing",
+    "description": "인력 지원: 부서별 예상 적체 증가 건수, 지원 필요 인원(가정값), 지원 가능 부서와 짝.",
+    "operationId": "staffing_api_staffing_get",
+    "parameters": [
+     {
+      "name": "asof",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나",
+       "title": "Asof"
+      },
+      "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나"
+     },
+     {
+      "name": "start",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "기간 시작 (기본: 기준일)",
+       "title": "Start"
+      },
+      "description": "기간 시작 (기본: 기준일)"
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "기간 끝 (기본: 기준일 + 6일, 최대 기준일 + 91일)",
+       "title": "End"
+      },
+      "description": "기간 끝 (기본: 기준일 + 6일, 최대 기준일 + 91일)"
+     },
+     {
+      "name": "per_person_day",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "number",
+       "maximum": 200,
+       "exclusiveMinimum": 0,
+       "description": "가정값: 1인당 하루 처리 건수",
+       "default": 10,
+       "title": "Per Person Day"
+      },
+      "description": "가정값: 1인당 하루 처리 건수"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StaffingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/risk-list": {
+   "get": {
+    "summary": "Risk List",
+    "description": "지연 위험 민원: 기준일에 처리 중인 민원 중 늦어질 가능성이 큰 순서.",
+    "operationId": "risk_list_api_risk_list_get",
+    "parameters": [
+     {
+      "name": "asof",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나",
+       "title": "Asof"
+      },
+      "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나"
+     },
+     {
+      "name": "agency",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^(DSNY|DEP|DOT|DOB|DOHMH|DPR|DCWP|DHS)$"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "부서 코드 (DSNY, DEP, DOT, DOB, DOHMH, DPR, DCWP, DHS). 없으면 전체",
+       "title": "Agency"
+      },
+      "description": "부서 코드 (DSNY, DEP, DOT, DOB, DOHMH, DPR, DCWP, DHS). 없으면 전체"
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 40,
+       "minimum": 1,
+       "default": 15,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RiskOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/evidence": {
+   "get": {
+    "summary": "Evidence",
+    "description": "화면 수치의 검증 근거.",
+    "operationId": "evidence_api_evidence_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EvidenceOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "ActualSurge": {
+    "properties": {
+     "issue": {
+      "type": "string",
+      "title": "Issue"
+     },
+     "date": {
+      "type": "string",
+      "title": "Date"
+     },
+     "count": {
+      "type": "number",
+      "title": "Count"
+     },
+     "normal": {
+      "type": "number",
+      "title": "Normal"
+     }
+    },
+    "type": "object",
+    "required": [
+     "issue",
+     "date",
+     "count",
+     "normal"
+    ],
+    "title": "ActualSurge"
+   },
+   "Agency": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "short": {
+      "type": "string",
+      "title": "Short"
+     },
+     "desc": {
+      "type": "string",
+      "title": "Desc"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "name",
+     "short",
+     "desc"
+    ],
+    "title": "Agency"
+   },
+   "AgencyForecast": {
+    "properties": {
+     "pred": {
+      "type": "number",
+      "title": "Pred"
+     },
+     "lo": {
+      "type": "number",
+      "title": "Lo"
+     },
+     "hi": {
+      "type": "number",
+      "title": "Hi"
+     },
+     "base": {
+      "type": "number",
+      "title": "Base"
+     },
+     "change": {
+      "type": "number",
+      "title": "Change"
+     },
+     "actual": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actual"
+     },
+     "agency": {
+      "type": "string",
+      "title": "Agency"
+     },
+     "flag": {
+      "type": "string",
+      "title": "Flag"
+     },
+     "flag_reason": {
+      "type": "string",
+      "title": "Flag Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "pred",
+     "lo",
+     "hi",
+     "base",
+     "change",
+     "agency",
+     "flag",
+     "flag_reason"
+    ],
+    "title": "AgencyForecast"
+   },
+   "AlertItem": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "title": "Date"
+     },
+     "offset": {
+      "type": "integer",
+      "title": "Offset"
+     },
+     "type": {
+      "type": "string",
+      "title": "Type"
+     },
+     "type_label": {
+      "type": "string",
+      "title": "Type Label"
+     },
+     "level": {
+      "type": "integer",
+      "title": "Level"
+     },
+     "level_label": {
+      "type": "string",
+      "title": "Level Label"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "lead_days": {
+      "type": "integer",
+      "title": "Lead Days"
+     },
+     "value": {
+      "type": "string",
+      "title": "Value"
+     },
+     "issues": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Issues"
+     },
+     "agencies": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Agencies"
+     },
+     "hit_rate": {
+      "type": "number",
+      "title": "Hit Rate"
+     },
+     "confidence": {
+      "type": "string",
+      "title": "Confidence"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "offset",
+     "type",
+     "type_label",
+     "level",
+     "level_label",
+     "source",
+     "lead_days",
+     "value",
+     "issues",
+     "agencies",
+     "hit_rate",
+     "confidence"
+    ],
+    "title": "AlertItem"
+   },
+   "Amount": {
+    "properties": {
+     "pred": {
+      "type": "number",
+      "title": "Pred"
+     },
+     "lo": {
+      "type": "number",
+      "title": "Lo"
+     },
+     "hi": {
+      "type": "number",
+      "title": "Hi"
+     },
+     "base": {
+      "type": "number",
+      "title": "Base"
+     },
+     "change": {
+      "type": "number",
+      "title": "Change"
+     },
+     "actual": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actual"
+     }
+    },
+    "type": "object",
+    "required": [
+     "pred",
+     "lo",
+     "hi",
+     "base",
+     "change"
+    ],
+    "title": "Amount"
+   },
+   "EvidenceItem": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "value": {
+      "type": "string",
+      "title": "Value"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label",
+     "value",
+     "note"
+    ],
+    "title": "EvidenceItem"
+   },
+   "EvidenceOut": {
+    "properties": {
+     "sections": {
+      "items": {
+       "$ref": "#/components/schemas/EvidenceSection"
+      },
+      "type": "array",
+      "title": "Sections"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Sources"
+     }
+    },
+    "type": "object",
+    "required": [
+     "sections",
+     "sources"
+    ],
+    "title": "EvidenceOut"
+   },
+   "EvidenceSection": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/EvidenceItem"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "title",
+     "items"
+    ],
+    "title": "EvidenceSection"
+   },
+   "ForecastOut": {
+    "properties": {
+     "period": {
+      "$ref": "#/components/schemas/Period"
+     },
+     "agency": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agency"
+     },
+     "granularity": {
+      "type": "string",
+      "title": "Granularity"
+     },
+     "total": {
+      "$ref": "#/components/schemas/Amount"
+     },
+     "by_agency": {
+      "items": {
+       "$ref": "#/components/schemas/AgencyForecast"
+      },
+      "type": "array",
+      "title": "By Agency"
+     },
+     "series": {
+      "items": {
+       "$ref": "#/components/schemas/SeriesPoint"
+      },
+      "type": "array",
+      "title": "Series"
+     },
+     "range_note": {
+      "type": "string",
+      "title": "Range Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "period",
+     "agency",
+     "granularity",
+     "total",
+     "by_agency",
+     "series",
+     "range_note"
+    ],
+    "title": "ForecastOut"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "type": "array",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+   },
+   "Headline": {
+    "properties": {
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "detail": {
+      "type": "string",
+      "title": "Detail"
+     },
+     "tone": {
+      "type": "string",
+      "title": "Tone"
+     }
+    },
+    "type": "object",
+    "required": [
+     "title",
+     "detail",
+     "tone"
+    ],
+    "title": "Headline"
+   },
+   "IssueCard": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "icon": {
+      "type": "string",
+      "title": "Icon"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "agency": {
+      "type": "string",
+      "title": "Agency"
+     },
+     "tag": {
+      "type": "string",
+      "title": "Tag"
+     },
+     "when": {
+      "type": "string",
+      "title": "When"
+     },
+     "basis": {
+      "type": "string",
+      "title": "Basis"
+     },
+     "metric_label": {
+      "type": "string",
+      "title": "Metric Label"
+     },
+     "metric": {
+      "type": "string",
+      "title": "Metric"
+     },
+     "tone": {
+      "type": "string",
+      "title": "Tone"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "icon",
+     "title",
+     "agency",
+     "tag",
+     "when",
+     "basis",
+     "metric_label",
+     "metric",
+     "tone"
+    ],
+    "title": "IssueCard"
+   },
+   "IssuesOut": {
+    "properties": {
+     "period": {
+      "$ref": "#/components/schemas/Period"
+     },
+     "alerts": {
+      "items": {
+       "$ref": "#/components/schemas/AlertItem"
+      },
+      "type": "array",
+      "title": "Alerts"
+     },
+     "outlook": {
+      "items": {
+       "$ref": "#/components/schemas/OutlookItem"
+      },
+      "type": "array",
+      "title": "Outlook"
+     },
+     "pothole": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Pothole"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "cards": {
+      "items": {
+       "$ref": "#/components/schemas/IssueCard"
+      },
+      "type": "array",
+      "title": "Cards"
+     },
+     "headline": {
+      "$ref": "#/components/schemas/Headline"
+     },
+     "actual_surges": {
+      "items": {
+       "$ref": "#/components/schemas/ActualSurge"
+      },
+      "type": "array",
+      "title": "Actual Surges"
+     }
+    },
+    "type": "object",
+    "required": [
+     "period",
+     "alerts",
+     "outlook",
+     "pothole",
+     "cards",
+     "headline",
+     "actual_surges"
+    ],
+    "title": "IssuesOut"
+   },
+   "Kpis": {
+    "properties": {
+     "forecast": {
+      "$ref": "#/components/schemas/Amount"
+     },
+     "alert_count": {
+      "type": "integer",
+      "title": "Alert Count"
+     },
+     "alert_top": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Alert Top"
+     },
+     "alert_detail": {
+      "type": "string",
+      "title": "Alert Detail"
+     },
+     "focus_count": {
+      "type": "integer",
+      "title": "Focus Count"
+     },
+     "increase_count": {
+      "type": "integer",
+      "title": "Increase Count"
+     },
+     "focus_names": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Focus Names"
+     },
+     "agency_quadrant": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agency Quadrant"
+     },
+     "backlog_open": {
+      "type": "number",
+      "title": "Backlog Open"
+     },
+     "backlog_normal": {
+      "type": "number",
+      "title": "Backlog Normal"
+     },
+     "backlog_multiple": {
+      "type": "number",
+      "title": "Backlog Multiple"
+     },
+     "need_people": {
+      "type": "number",
+      "title": "Need People"
+     },
+     "need_count": {
+      "type": "number",
+      "title": "Need Count"
+     },
+     "support_count": {
+      "type": "integer",
+      "title": "Support Count"
+     },
+     "coverage": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Coverage"
+     }
+    },
+    "type": "object",
+    "required": [
+     "forecast",
+     "alert_count",
+     "alert_top",
+     "alert_detail",
+     "focus_count",
+     "increase_count",
+     "focus_names",
+     "agency_quadrant",
+     "backlog_open",
+     "backlog_normal",
+     "backlog_multiple",
+     "need_people",
+     "need_count",
+     "support_count",
+     "coverage"
+    ],
+    "title": "Kpis"
+   },
+   "MatrixItem": {
+    "properties": {
+     "agency": {
+      "type": "string",
+      "title": "Agency"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "short": {
+      "type": "string",
+      "title": "Short"
+     },
+     "x": {
+      "type": "number",
+      "title": "X"
+     },
+     "x_lo": {
+      "type": "number",
+      "title": "X Lo"
+     },
+     "x_hi": {
+      "type": "number",
+      "title": "X Hi"
+     },
+     "y": {
+      "type": "number",
+      "title": "Y"
+     },
+     "quadrant": {
+      "type": "string",
+      "title": "Quadrant"
+     },
+     "flag": {
+      "type": "string",
+      "title": "Flag"
+     },
+     "flag_reason": {
+      "type": "string",
+      "title": "Flag Reason"
+     },
+     "pred": {
+      "type": "number",
+      "title": "Pred"
+     },
+     "lo": {
+      "type": "number",
+      "title": "Lo"
+     },
+     "hi": {
+      "type": "number",
+      "title": "Hi"
+     },
+     "base": {
+      "type": "number",
+      "title": "Base"
+     },
+     "backlog_open": {
+      "type": "number",
+      "title": "Backlog Open"
+     },
+     "backlog_normal": {
+      "type": "number",
+      "title": "Backlog Normal"
+     },
+     "actual": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actual"
+     },
+     "x_actual": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "X Actual"
+     },
+     "quadrant_actual": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quadrant Actual"
+     },
+     "in_range": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "In Range"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agency",
+     "name",
+     "short",
+     "x",
+     "x_lo",
+     "x_hi",
+     "y",
+     "quadrant",
+     "flag",
+     "flag_reason",
+     "pred",
+     "lo",
+     "hi",
+     "base",
+     "backlog_open",
+     "backlog_normal"
+    ],
+    "title": "MatrixItem"
+   },
+   "MatrixOut": {
+    "properties": {
+     "period": {
+      "$ref": "#/components/schemas/Period"
+     },
+     "thresholds": {
+      "$ref": "#/components/schemas/Thresholds"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/MatrixItem"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Counts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "period",
+     "thresholds",
+     "items",
+     "counts"
+    ],
+    "title": "MatrixOut"
+   },
+   "Meta": {
+    "properties": {
+     "app_name": {
+      "type": "string",
+      "title": "App Name"
+     },
+     "agencies": {
+      "items": {
+       "$ref": "#/components/schemas/Agency"
+      },
+      "type": "array",
+      "title": "Agencies"
+     },
+     "asofs": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Asofs"
+     },
+     "latest": {
+      "type": "string",
+      "title": "Latest"
+     },
+     "data_end": {
+      "type": "string",
+      "title": "Data End"
+     },
+     "scenarios": {
+      "items": {
+       "$ref": "#/components/schemas/Scenario"
+      },
+      "type": "array",
+      "title": "Scenarios"
+     },
+     "presets": {
+      "items": {
+       "$ref": "#/components/schemas/Preset"
+      },
+      "type": "array",
+      "title": "Presets"
+     },
+     "max_days": {
+      "type": "integer",
+      "title": "Max Days"
+     },
+     "thresholds": {
+      "$ref": "#/components/schemas/Thresholds"
+     },
+     "per_person_default": {
+      "type": "number",
+      "title": "Per Person Default"
+     },
+     "built_at": {
+      "type": "string",
+      "title": "Built At"
+     },
+     "data_note": {
+      "type": "string",
+      "title": "Data Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "app_name",
+     "agencies",
+     "asofs",
+     "latest",
+     "data_end",
+     "scenarios",
+     "presets",
+     "max_days",
+     "thresholds",
+     "per_person_default",
+     "built_at",
+     "data_note"
+    ],
+    "title": "Meta"
+   },
+   "NeedItem": {
+    "properties": {
+     "agency": {
+      "type": "string",
+      "title": "Agency"
+     },
+     "excess": {
+      "type": "number",
+      "title": "Excess"
+     },
+     "conv": {
+      "type": "number",
+      "title": "Conv"
+     },
+     "instant_share": {
+      "type": "number",
+      "title": "Instant Share"
+     },
+     "need": {
+      "type": "number",
+      "title": "Need"
+     },
+     "people": {
+      "type": "number",
+      "title": "People"
+     },
+     "covered": {
+      "type": "number",
+      "title": "Covered"
+     },
+     "quadrant": {
+      "type": "string",
+      "title": "Quadrant"
+     },
+     "flag": {
+      "type": "string",
+      "title": "Flag"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agency",
+     "excess",
+     "conv",
+     "instant_share",
+     "need",
+     "people",
+     "covered",
+     "quadrant",
+     "flag"
+    ],
+    "title": "NeedItem"
+   },
+   "OutlookItem": {
+    "properties": {
+     "issue": {
+      "type": "string",
+      "title": "Issue"
+     },
+     "agency": {
+      "type": "string",
+      "title": "Agency"
+     },
+     "prob": {
+      "type": "number",
+      "title": "Prob"
+     },
+     "surged": {
+      "type": "integer",
+      "title": "Surged"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "months": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "title": "Months"
+     }
+    },
+    "type": "object",
+    "required": [
+     "issue",
+     "agency",
+     "prob",
+     "surged",
+     "total",
+     "months"
+    ],
+    "title": "OutlookItem"
+   },
+   "PairItem": {
+    "properties": {
+     "from_agency": {
+      "type": "string",
+      "title": "From Agency"
+     },
+     "to_agency": {
+      "type": "string",
+      "title": "To Agency"
+     },
+     "amount": {
+      "type": "number",
+      "title": "Amount"
+     },
+     "people": {
+      "type": "number",
+      "title": "People"
+     }
+    },
+    "type": "object",
+    "required": [
+     "from_agency",
+     "to_agency",
+     "amount",
+     "people"
+    ],
+    "title": "PairItem"
+   },
+   "Period": {
+    "properties": {
+     "asof": {
+      "type": "string",
+      "title": "Asof"
+     },
+     "start": {
+      "type": "string",
+      "title": "Start"
+     },
+     "end": {
+      "type": "string",
+      "title": "End"
+     },
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "has_actual": {
+      "type": "boolean",
+      "title": "Has Actual"
+     }
+    },
+    "type": "object",
+    "required": [
+     "asof",
+     "start",
+     "end",
+     "days",
+     "source",
+     "has_actual"
+    ],
+    "title": "Period"
+   },
+   "Pothole": {
+    "properties": {
+     "snow_cm": {
+      "type": "number",
+      "title": "Snow Cm"
+     },
+     "mult": {
+      "type": "number",
+      "title": "Mult"
+     },
+     "n_winters": {
+      "type": "integer",
+      "title": "N Winters"
+     },
+     "flag": {
+      "type": "boolean",
+      "title": "Flag"
+     },
+     "actual_mult": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actual Mult"
+     }
+    },
+    "type": "object",
+    "required": [
+     "snow_cm",
+     "mult",
+     "n_winters",
+     "flag"
+    ],
+    "title": "Pothole"
+   },
+   "Preset": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "label"
+    ],
+    "title": "Preset"
+   },
+   "RiskCount": {
+    "properties": {
+     "agency": {
+      "type": "string",
+      "title": "Agency"
+     },
+     "open": {
+      "type": "integer",
+      "title": "Open"
+     },
+     "over_threshold": {
+      "type": "integer",
+      "title": "Over Threshold"
+     },
+     "high_risk": {
+      "type": "integer",
+      "title": "High Risk"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agency",
+     "open",
+     "over_threshold",
+     "high_risk"
+    ],
+    "title": "RiskCount"
+   },
+   "RiskItem": {
+    "properties": {
+     "unique_key": {
+      "type": "string",
+      "title": "Unique Key"
+     },
+     "agency": {
+      "type": "string",
+      "title": "Agency"
+     },
+     "complaint_type": {
+      "type": "string",
+      "title": "Complaint Type"
+     },
+     "type_ko": {
+      "type": "string",
+      "title": "Type Ko"
+     },
+     "descriptor": {
+      "type": "string",
+      "title": "Descriptor"
+     },
+     "created": {
+      "type": "string",
+      "title": "Created"
+     },
+     "elapsed_days": {
+      "type": "number",
+      "title": "Elapsed Days"
+     },
+     "threshold_days": {
+      "type": "number",
+      "title": "Threshold Days"
+     },
+     "ratio": {
+      "type": "number",
+      "title": "Ratio"
+     },
+     "prob": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Prob"
+     },
+     "method": {
+      "type": "string",
+      "title": "Method"
+     },
+     "factors": {
+      "type": "string",
+      "title": "Factors"
+     }
+    },
+    "type": "object",
+    "required": [
+     "unique_key",
+     "agency",
+     "complaint_type",
+     "type_ko",
+     "descriptor",
+     "created",
+     "elapsed_days",
+     "threshold_days",
+     "ratio",
+     "prob",
+     "method",
+     "factors"
+    ],
+    "title": "RiskItem"
+   },
+   "RiskOut": {
+    "properties": {
+     "asof": {
+      "type": "string",
+      "title": "Asof"
+     },
+     "agency": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agency"
+     },
+     "counts": {
+      "items": {
+       "$ref": "#/components/schemas/RiskCount"
+      },
+      "type": "array",
+      "title": "Counts"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/RiskItem"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "asof",
+     "agency",
+     "counts",
+     "items",
+     "note"
+    ],
+    "title": "RiskOut"
+   },
+   "Scenario": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "asof": {
+      "type": "string",
+      "title": "Asof"
+     },
+     "start": {
+      "type": "string",
+      "title": "Start"
+     },
+     "end": {
+      "type": "string",
+      "title": "End"
+     },
+     "agency": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agency"
+     },
+     "narration": {
+      "type": "string",
+      "title": "Narration"
+     },
+     "result": {
+      "type": "string",
+      "title": "Result"
+     },
+     "focus": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Focus"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "title",
+     "asof",
+     "start",
+     "end",
+     "narration",
+     "result",
+     "focus"
+    ],
+    "title": "Scenario"
+   },
+   "SeriesPoint": {
+    "properties": {
+     "start": {
+      "type": "string",
+      "title": "Start"
+     },
+     "end": {
+      "type": "string",
+      "title": "End"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "pred": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pred"
+     },
+     "lo": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lo"
+     },
+     "hi": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Hi"
+     },
+     "actual": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actual"
+     },
+     "alert": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Alert"
+     }
+    },
+    "type": "object",
+    "required": [
+     "start",
+     "end",
+     "label",
+     "kind"
+    ],
+    "title": "SeriesPoint"
+   },
+   "StaffingOut": {
+    "properties": {
+     "period": {
+      "$ref": "#/components/schemas/Period"
+     },
+     "per_person_day": {
+      "type": "number",
+      "title": "Per Person Day"
+     },
+     "workdays": {
+      "type": "integer",
+      "title": "Workdays"
+     },
+     "needs": {
+      "items": {
+       "$ref": "#/components/schemas/NeedItem"
+      },
+      "type": "array",
+      "title": "Needs"
+     },
+     "supports": {
+      "items": {
+       "$ref": "#/components/schemas/SupportItem"
+      },
+      "type": "array",
+      "title": "Supports"
+     },
+     "pairs": {
+      "items": {
+       "$ref": "#/components/schemas/PairItem"
+      },
+      "type": "array",
+      "title": "Pairs"
+     },
+     "total_need": {
+      "type": "number",
+      "title": "Total Need"
+     },
+     "total_people": {
+      "type": "number",
+      "title": "Total People"
+     },
+     "covered": {
+      "type": "number",
+      "title": "Covered"
+     },
+     "coverage": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Coverage"
+     }
+    },
+    "type": "object",
+    "required": [
+     "period",
+     "per_person_day",
+     "workdays",
+     "needs",
+     "supports",
+     "pairs",
+     "total_need",
+     "total_people",
+     "covered",
+     "coverage"
+    ],
+    "title": "StaffingOut"
+   },
+   "SummaryOut": {
+    "properties": {
+     "period": {
+      "$ref": "#/components/schemas/Period"
+     },
+     "agency": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agency"
+     },
+     "kpis": {
+      "$ref": "#/components/schemas/Kpis"
+     }
+    },
+    "type": "object",
+    "required": [
+     "period",
+     "agency",
+     "kpis"
+    ],
+    "title": "SummaryOut"
+   },
+   "SupportItem": {
+    "properties": {
+     "agency": {
+      "type": "string",
+      "title": "Agency"
+     },
+     "slack": {
+      "type": "number",
+      "title": "Slack"
+     },
+     "people": {
+      "type": "number",
+      "title": "People"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agency",
+     "slack",
+     "people"
+    ],
+    "title": "SupportItem"
+   },
+   "Thresholds": {
+    "properties": {
+     "x": {
+      "type": "number",
+      "title": "X"
+     },
+     "y": {
+      "type": "number",
+      "title": "Y"
+     },
+     "support_x": {
+      "type": "number",
+      "title": "Support X"
+     }
+    },
+    "type": "object",
+    "required": [
+     "x",
+     "y",
+     "support_x"
+    ],
+    "title": "Thresholds"
+   },
+   "ValidationError": {
+    "properties": {
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Location"
+     },
+     "msg": {
+      "type": "string",
+      "title": "Message"
+     },
+     "type": {
+      "type": "string",
+      "title": "Error Type"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "ctx": {
+      "type": "object",
+      "title": "Context"
+     }
+    },
+    "type": "object",
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError"
+   }
+  }
+ }
+}

@@ -1,10 +1,13 @@
-# 민원 조기경보 대시보드
+# 스마트 민원케어 — 민원 조기경보 대시보드
 
-부서와 기간을 선택하면 그 기간의 **민원 집중도(예상 건수, 예상 이슈, 2×2 위험 매트릭스)** 를 미리 보여 주고, 집중도가 높은 부서에 인력을 연결하도록 돕는 행정 지원 대시보드입니다. 전무님 평가용 시연을 목표로 합니다.
+부서와 기간을 선택하면 그 기간의 **민원 집중도(예상 건수, 예상 이슈, 2×2 위험 매트릭스)** 를 미리 보여 주고, 집중도가 높은 부서에 인력을 연결하도록 돕는 행정 지원 대시보드입니다. 전무님 평가·정부 제출용 시연을 목표로 합니다.
+
+화면 구성: 헤더(부서 선택·기상 특보 알림) → 기준일·기간 선택 → 핵심 지표 5개 → 예상 접수 추이 · 예상 이슈 · 부서 위험 매트릭스 · 인력 지원 권고 · 부서별 현황 · 지연 위험 민원, 그리고 시연 모드(시나리오 5개)와 검증 근거 창.
 
 - 기획 기준 문서: [docs/서비스기획_정리.md](docs/서비스기획_정리.md)
 - 검증 결과 (10년치): [docs/검증결과_10년.md](docs/검증결과_10년.md)
 - 시연 리허설 검증: [docs/리허설_검증.md](docs/리허설_검증.md)
+- 개발 설계: [docs/개발설계.md](docs/개발설계.md)
 - 데이터 설명: [data/NYC311_컬럼설명.md](data/NYC311_컬럼설명.md), [data/processed/README.md](data/processed/README.md)
 
 ## 구성
@@ -12,18 +15,20 @@
 ```
 minwon-dashboard/
 ├─ pyproject.toml       Python 패키지 (uv로 관리, Python 3.12)
-├─ backend/app/         FastAPI 서버
-├─ frontend/            React + TypeScript (Vite) + ECharts
+├─ engine/              계산 패키지 (예측·특보·이슈·적체·지연 위험·매트릭스·인력) + 사전 계산(build.py)
+├─ backend/app/         FastAPI 서버 (사전 계산 결과를 메모리에 올려 응답)
+├─ frontend/            React + TypeScript (Vite) + Tailwind CSS + ECharts
 ├─ pipelines/           데이터 수집·병합 스크립트
 ├─ analysis/            검증 스크립트 (결과는 analysis/results/)
 ├─ data/
 │  ├─ raw/nyc311/       뉴욕 311 브롱크스 월별 원본 (2016-01 ~ 2026-10)
 │  ├─ raw/weather/      Open-Meteo 일별 기상 (2016-01-01 ~ 2026-10-13)
-│  └─ processed/        병합 결과
-└─ docs/                기획·검증 문서
+│  ├─ processed/        병합 결과
+│  └─ artifacts/        사전 계산 결과 (기준일 145개, 약 3MB)
+└─ docs/                기획·검증·설계 문서
 ```
 
-`data/raw`, `data/processed`의 데이터 파일은 git에 넣지 않습니다.
+`data/raw`, `data/processed`, `data/artifacts`의 데이터 파일은 git에 넣지 않습니다.
 
 ## 실행
 
@@ -31,7 +36,8 @@ minwon-dashboard/
 ```bash
 brew install uv libomp      # uv(파이썬 관리), libomp(LightGBM용)
 uv sync                     # Python 3.12 가상환경과 패키지 설치
-cd frontend && npm install
+cd frontend && npm install && cd ..
+uv run python -m engine.build   # 사전 계산 (약 3분). 끝에 시연 시나리오를 리허설 표와 대조
 ```
 
 ### 개발 모드 (화면 수정이 바로 반영됨)
@@ -40,10 +46,18 @@ uv run uvicorn app.main:app --app-dir backend --reload    # API: http://127.0.0.
 cd frontend && npm run dev                                 # 화면: http://localhost:5173
 ```
 
-### 시연 모드 (서버 하나로 실행)
+### 시연 (서버 하나로 실행, 인터넷 없이 동작)
 ```bash
 cd frontend && npm run build && cd ..
 uv run uvicorn app.main:app --app-dir backend               # http://127.0.0.1:8000
+```
+화면 오른쪽 위 **시연 모드** 버튼을 누르면 평상시 → 폭염 → 블리자드 → 봄철 도로 파손 → 집중관리 순서로 진행합니다.
+
+### 테스트·검사
+```bash
+uv run pytest -q && uv run ruff check .                    # 계산 규칙·API
+cd frontend && npm test && npm run lint && npm run build    # 화면 (타입 검사 포함)
+cd frontend && npm run gen:api                              # API 응답 형식을 바꾼 뒤 TypeScript 타입 다시 만들기
 ```
 
 ## 데이터 다시 만들기

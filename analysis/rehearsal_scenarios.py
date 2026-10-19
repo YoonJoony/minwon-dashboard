@@ -165,7 +165,7 @@ def main() -> None:
         "wind_speed_10m": "wind", "wind_gusts_10m": "gust"})
     obs_lv = daily_levels(obs_h)
     feats = pd.read_parquet(ROOT / "data/processed/complaint_features.parquet",
-                            columns=["created", "closed", "proc_days", "agency", "instant"])
+                            columns=["created", "closed", "proc_days", "agency", "instant", "status"])
     cands, _ = candidates(feats)
     dr = cands["C 적체 배수"]
     normal = dr.rolling(52, min_periods=40).median().shift(1).clip(lower=1)

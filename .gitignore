@@ -17,3 +17,6 @@ frontend/dist/
 # 기타
 .DS_Store
 *.log
+
+# 사전 계산 결과 (uv run python -m engine.build 로 다시 만듦)
+data/artifacts/

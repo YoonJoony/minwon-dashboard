@@ -39,12 +39,12 @@ def candidates(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
         open_ = w.closed.isna() | (w.closed >= m)
         over = open_ & ((m - w.created).dt.total_seconds() / 86400 > w.agency.map(thr))
         B[m] = over.groupby(w.agency).mean()
-        C[m] = open_.groupby(w.agency).sum()
+        C[m] = (open_ | (w.status != "Closed")).groupby(w.agency).sum()   # 상태가 아직 처리 중이면 종결일이 있어도 처리 중
     return {"A 현재 정의": A, "B 장기 기준 P90": pd.DataFrame(B).T[AG], "C 적체 배수": pd.DataFrame(C).T[AG].astype(float)}, QT
 
 
 def main() -> None:
-    df = pd.read_parquet(ROOT / "data/processed/complaint_features.parquet", columns=["created", "closed", "proc_days", "agency"])
+    df = pd.read_parquet(ROOT / "data/processed/complaint_features.parquet", columns=["created", "closed", "proc_days", "agency", "status"])
     M = pd.read_csv(ROOT / "analysis/results/matrix_monthly.csv")
     cands, QT = candidates(df)
     print("=== B의 분기 기준처리기간(일), 2024~ :")

@@ -1,16 +1,66 @@
-:root {
-  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
-  line-height: 1.5;
-  color: #1d2433;
-  background-color: #ffffff;
-  -webkit-font-smoothing: antialiased;
+@import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic',
+    system-ui, sans-serif;
+
+  --color-page: #f6f6f9;
+  --color-panel: #ffffff;
+  --color-line: #ebebf1;
+  --color-line-strong: #dedee7;
+  --color-ink: #16161d;
+  --color-mute: #6b6b7b;
+  --color-faint: #a3a3b2;
+
+  --color-brand: #5b4fe0;
+  --color-brand-mid: #8b80ee;
+  --color-brand-soft: #cdc8f8;
+  --color-brand-tint: #f0eefd;
+  --color-navy: #1f1b4d;
+
+  --color-up: #e0483f;
+  --color-down: #17955a;
+  --color-warn: #d97706;
+  --color-warn-tint: #fdf4e3;
+  --color-danger-tint: #fdecea;
+  --color-ok-tint: #e7f6ee;
 }
 
+html,
 body {
-  margin: 0;
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1;
 }
 
-h1 {
-  font-size: 1.8rem;
-  margin: 0 0 4px;
+/* 숫자 열을 가지런히 */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 로딩 자리표시 */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, #efeff4 25%, #f7f7fa 37%, #efeff4 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 10px;
+}
+
+/* 이슈 카드 가로 넘김 */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
 }

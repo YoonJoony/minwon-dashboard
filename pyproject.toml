@@ -37,6 +37,7 @@ target-version = "py312"
 [tool.pytest.ini_options]
 pythonpath = ["backend"]
 testpaths = ["backend/tests"]
+filterwarnings = ["ignore:The 'generic' unit for NumPy timedelta:DeprecationWarning"]
 
 [tool.ruff.lint.per-file-ignores]
 # 검증용 분석 스크립트: 반복문 안에서 바로 쓰는 보조 함수·dict() 표기 허용

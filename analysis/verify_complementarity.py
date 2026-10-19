@@ -54,7 +54,7 @@ def backlog_count(df: pd.DataFrame) -> pd.DataFrame:
     out = {}
     for m in pd.date_range("2017-01-02", "2026-10-05", freq="W-MON"):
         w = df[(df.created >= m - pd.DateOffset(months=6)) & (df.created < m)]
-        out[m] = (w.closed.isna() | (w.closed >= m)).groupby(w.agency).sum()
+        out[m] = (w.closed.isna() | (w.closed >= m) | (w.status != "Closed")).groupby(w.agency).sum()
     return pd.DataFrame(out).T.reindex(columns=AG).astype(float)
 
 
@@ -101,7 +101,7 @@ def report(label: str, s: pd.DataFrame, intake: pd.DataFrame, base: pd.DataFrame
 
 def main() -> None:
     df = pd.read_parquet(ROOT / "data/processed/complaint_features.parquet",
-                         columns=["created", "closed", "proc_days", "agency", "instant"])
+                         columns=["created", "closed", "proc_days", "agency", "instant", "status"])
     dr = delay_ratio(df) if Y_MODE == "delay" else backlog_count(df)
     normal = dr.rolling(52, min_periods=40).median().shift(1)
     y_week = dr / normal.clip(lower=0.005 if Y_MODE == "delay" else 1)
