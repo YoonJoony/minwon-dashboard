@@ -3,7 +3,7 @@
 부서와 기간을 선택하면 그 기간의 **민원 집중도(예상 건수, 예상 이슈, 2×2 위험 매트릭스)** 를 미리 보여 주고, 집중도가 높은 부서에 인력을 연결하도록 돕는 행정 지원 대시보드입니다. 전무님 평가용 시연을 목표로 합니다.
 
 - 기획 기준 문서: [docs/서비스기획_정리.md](docs/서비스기획_정리.md)
-- 실현 가능성 검증: [docs/수정안_실현가능성_검토.md](docs/수정안_실현가능성_검토.md)
+- 검증 결과 (10년치): [docs/검증결과_10년.md](docs/검증결과_10년.md)
 - 데이터 설명: [data/NYC311_컬럼설명.md](data/NYC311_컬럼설명.md), [data/processed/README.md](data/processed/README.md)
 
 ## 구성
@@ -14,6 +14,7 @@ minwon-dashboard/
 ├─ backend/app/         FastAPI 서버
 ├─ frontend/            React + TypeScript (Vite) + ECharts
 ├─ pipelines/           데이터 수집·병합 스크립트
+├─ analysis/            검증 스크립트 (결과는 analysis/results/)
 ├─ data/
 │  ├─ raw/nyc311/       뉴욕 311 브롱크스 월별 원본 (2016-01 ~ 2026-10)
 │  ├─ raw/weather/      Open-Meteo 일별 기상 (2016-01-01 ~ 2026-10-13)
@@ -54,4 +55,23 @@ uv run python pipelines/fetch_nyc311.py --start 2016-01-01 --end 2026-10-13 --bo
 uv run python pipelines/fetch_openmeteo.py --start 2016-01-01 --end 2026-10-13
 # 병합 (월별 폴더를 그대로 읽음)
 uv run python pipelines/merge_weather.py
+# 과거 예보 기록 (경보 검증·과거 시점 재현용)
+uv run python pipelines/fetch_openmeteo_forecasts.py --start 2022-01-01 --end 2026-10-12
+# 시간별 관측·예보, 미국 단위 (NWS 특보 기준 계산용)
+uv run python pipelines/fetch_openmeteo_hourly.py --start 2016-01-01 --end 2026-10-12 --forecast-start 2022-01-01
 ```
+
+## 검증 다시 실행하기
+
+```bash
+uv run python analysis/build_complaint_features.py   # 민원 1건별 분석 변수 (먼저 실행)
+uv run python analysis/verify_risk.py                # 장기처리 위험 모델, 매트릭스 세로축 (약 10분)
+uv run python analysis/verify_matrix_axis.py         # 세로축 대안, 사분면 기준
+uv run python analysis/verify_short_term.py          # 단기 건수 예측, 관측 기상 경보
+uv run python analysis/verify_short_term_issue.py    # 이슈 단위 기상 효과, 강도별 경보
+uv run python analysis/verify_forecast_alerts.py     # 실제 예보 기반 경보
+uv run python analysis/verify_capacity.py            # 처리능력·적체 전환율
+uv run python analysis/verify_nws_alerts.py          # 미국 기상청(NWS) 특보 기준 경보
+uv run python analysis/verify_complementarity.py     # 과부하·지원 가능 부서 동시 발생
+```
+한 달·분기 예측과 이슈 빈도 검증 결과는 [docs/검증결과_10년.md](docs/검증결과_10년.md) ①·⑤를 보세요.
