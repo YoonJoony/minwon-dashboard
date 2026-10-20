@@ -74,7 +74,7 @@ export function buildKpis(s: SummaryOut, o: { days: number; ppd: number; agencyS
       unit: '명',
       note: k.need_count >= 1 ? `적체 증가 예상 ${fmtInt(k.need_count)}건` : '적체 증가 예상 부서 없음',
       sub:
-        `가정 1인 하루 ${o.ppd}건 · 지원 가능 ${k.support_count}곳` +
+        `1인 하루 ${o.ppd}건 · 지원 가능 ${k.support_count}곳` +
         (k.coverage != null ? ` · 충당 ${Math.round(k.coverage * 100)}%` : ''),
     },
   ]

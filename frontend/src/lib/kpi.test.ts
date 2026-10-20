@@ -35,7 +35,7 @@ describe('상단 핵심 지표', () => {
     expect(k[2].note).toBe('해당 부서 없음')
     expect(k[3].chip?.tone).toBe('muted')
     expect(k[4].value).toBe('1.2')
-    expect(k[4].sub).toContain('가정 1인 하루 10건')
+    expect(k[4].sub).toContain('1인 하루 10건')
   })
 
   it('특보가 없으면 "없음", 부서를 고르면 판정을 보여 준다', () => {

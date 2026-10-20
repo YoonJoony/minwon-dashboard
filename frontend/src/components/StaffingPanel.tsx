@@ -76,9 +76,9 @@ function Summary({ data }: { data: StaffingOut }) {
     { label: '지원 필요 인원', value: peopleText(data.total_people), sub: `적체 증가 예상 ${fmtInt(data.total_need)}건` },
     { label: '지원 가능 부서', value: `${data.supports.length}곳`, sub: data.supports.length ? `여유 ${fmtInt(slack)}건` : '해당 부서 없음' },
     {
-      label: '충당률',
+      label: '지원 처리율',
       value: data.coverage != null ? `${Math.round(data.coverage * 100)}%` : '–',
-      sub: data.coverage != null ? `${fmtInt(data.covered)}건 메움` : '지원 필요 없음',
+      sub: data.coverage != null ? `${fmtInt(data.covered)}건 처리` : '지원 필요 없음',
     },
   ]
   return (

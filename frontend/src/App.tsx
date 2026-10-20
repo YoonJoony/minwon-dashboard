@@ -57,12 +57,12 @@ function Dashboard() {
       <KpiRow />
       <main className="border-t border-line bg-white">
         <Row>
-          <ForecastPanel />
-          <IssuePanel />
+          <StaffingPanel />
+          <MatrixPanel />
         </Row>
         <Row>
-          <MatrixPanel />
-          <StaffingPanel />
+          <ForecastPanel />
+          <IssuePanel />
         </Row>
         <Row>
           <DeptPanel />

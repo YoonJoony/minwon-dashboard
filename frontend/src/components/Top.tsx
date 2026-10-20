@@ -37,11 +37,20 @@ export function TabBar() {
 /* ------------------------------------------------------------------ 페이지 제목 */
 
 export function PageHeader() {
-  const { state, agencyName, short, days, openEvidence } = useDash()
+  const { state, isLatest, agencyName, short, days, openEvidence } = useDash()
   return (
     <div className="mx-auto flex max-w-[1680px] flex-wrap items-end justify-between gap-x-6 gap-y-4 px-5 pb-6 pt-8 lg:px-10">
       <div className="min-w-0">
-        <h1 className="text-[30px] font-bold tracking-[-0.025em] text-ink lg:text-[34px]">민원 운영 대시보드</h1>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h1 className="text-[30px] font-bold tracking-[-0.025em] text-ink lg:text-[34px]">민원 운영 대시보드</h1>
+          {/* 기준일이 최신이 아니면(시연 포함) 과거 시점 화면임을 제목 옆에 표시 */}
+          {!isLatest && (
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-[13px] font-semibold text-white">
+              <RotateCcw size={14} strokeWidth={2.2} aria-hidden="true" />
+              과거 시점
+            </span>
+          )}
+        </div>
         <p className="mt-1.5 text-[14px] text-mute">
           <b className="font-semibold text-ink">{agencyName(state.agency)}</b> · {fmtRange(state.start, state.end)} ({days}일) 예측 ·{' '}
           {short ? '단기 예측 모델(1~14일)' : '월별 계절 지수 방식(한 달·분기)'}
@@ -61,55 +70,37 @@ export function PageHeader() {
 
 /* ------------------------------------------------------------------ 배너 */
 
-/** 시연 중이면 설명 문구·실제 결과, 과거 기준일이면 재현 안내 */
+/** 시연 중일 때만 설명 문구·실제 결과. 과거 기준일인지는 제목 옆 "과거 시점" 태그로 표시 */
 export function ContextBanner() {
-  const { state, isLatest, demoScenario, steps, goLatest } = useDash()
-  if (demoScenario && state.demo !== null) {
-    return (
-      <div className="mx-auto max-w-[1680px] px-5 pb-6 lg:px-10">
-        <div className="grid gap-4 rounded-2xl bg-navy p-5 text-white lg:grid-cols-[1fr_minmax(280px,420px)] lg:p-6">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 text-[13px]">
-              <span className="rounded-full bg-white/15 px-2.5 py-0.5 font-semibold">
-                시연 {state.demo + 1} / {steps.length}
-              </span>
-              <span className="text-white/70">
-                기준일 {fmtDateW(demoScenario.asof)} · 기간 {fmtRange(demoScenario.start, demoScenario.end)}
-              </span>
-            </div>
-            <p className="mt-2 text-[22px] font-bold tracking-[-0.02em]">{demoScenario.title}</p>
-            <p className="mt-1.5 max-w-[880px] text-[15px] leading-relaxed text-white/85">{demoScenario.narration}</p>
-            <p className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-white/75">
-              <Eye size={15} /> 볼 곳
-              {demoScenario.focus.map((f) => (
-                <span key={f} className="rounded-md bg-white/12 px-2 py-0.5 font-semibold text-white">
-                  {f}
-                </span>
-              ))}
-            </p>
-          </div>
-          <div className="rounded-xl bg-white/10 p-4">
-            <p className="text-[12px] font-semibold tracking-wide text-[#c9c1f7]">실제로 일어난 일</p>
-            <p className="mt-1.5 text-[14px] leading-relaxed text-white/90">{demoScenario.result}</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-  if (isLatest) return null
+  const { state, demoScenario, steps } = useDash()
+  if (!demoScenario || state.demo === null) return null
   return (
     <div className="mx-auto max-w-[1680px] px-5 pb-6 lg:px-10">
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#dcd6fb] bg-[#f4f2fe] px-5 py-3.5 text-[14px]">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-white text-brand">
-          <RotateCcw size={16} />
-        </span>
-        <p className="min-w-0 flex-1 text-ink">
-          <b className="font-semibold">과거 시점 재현 · {fmtDateW(state.asof)} 기준</b>
-          <span className="text-mute"> — 그날까지의 민원 데이터와 그날 발표된 예보만으로 계산했습니다. 기간이 지난 값은 실제 결과를 함께 표시합니다.</span>
-        </p>
-        <button type="button" onClick={goLatest} className="text-[13px] font-semibold text-brand hover:underline">
-          최신 기준일로 →
-        </button>
+      <div className="grid gap-4 rounded-2xl bg-navy p-5 text-white lg:grid-cols-[1fr_minmax(280px,420px)] lg:p-6">
+        <div>
+          <div className="flex flex-wrap items-center gap-2 text-[13px]">
+            <span className="rounded-full bg-white/15 px-2.5 py-0.5 font-semibold">
+              시연 {state.demo + 1} / {steps.length}
+            </span>
+            <span className="text-white/70">
+              기준일 {fmtDateW(demoScenario.asof)} · 기간 {fmtRange(demoScenario.start, demoScenario.end)}
+            </span>
+          </div>
+          <p className="mt-2 text-[22px] font-bold tracking-[-0.02em]">{demoScenario.title}</p>
+          <p className="mt-1.5 max-w-[880px] text-[15px] leading-relaxed text-white/85">{demoScenario.narration}</p>
+          <p className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-white/75">
+            <Eye size={15} /> 볼 곳
+            {demoScenario.focus.map((f) => (
+              <span key={f} className="rounded-md bg-white/12 px-2 py-0.5 font-semibold text-white">
+                {f}
+              </span>
+            ))}
+          </p>
+        </div>
+        <div className="rounded-xl bg-white/10 p-4">
+          <p className="text-[12px] font-semibold tracking-wide text-[#c9c1f7]">실제로 일어난 일</p>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-white/90">{demoScenario.result}</p>
+        </div>
       </div>
     </div>
   )
