@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fmtInt, fmtMult, fmtPct, fmtPeople, fmtRange, peopleText } from './format'
+import { fmtInt, fmtMult, fmtPct, fmtPeople, fmtRange, fmtYMDW, peopleText } from './format'
 
 describe('숫자 표기', () => {
   it('천 단위 쉼표와 음수 기호', () => {
@@ -24,5 +24,8 @@ describe('숫자 표기', () => {
     expect(fmtMult(1.1662)).toBe('1.17배')
     expect(fmtRange('2026-10-12', '2026-10-18')).toBe('10/12 ~ 10/18')
     expect(fmtRange('2026-12-28', '2027-01-03')).toBe('2026.12.28 ~ 2027.01.03')
+  })
+  it('기상 예보 모달 제목 날짜는 YYYY.MM.DD(요일)', () => {
+    expect(fmtYMDW('2025-06-22')).toBe('2025.06.22(일)')
   })
 })

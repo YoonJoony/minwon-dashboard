@@ -867,8 +867,6 @@ export interface components {
             kind: string;
             /** Kind Label */
             kind_label: string;
-            /** Has Alert */
-            has_alert: boolean;
             /** Issues */
             issues: string[];
             /** Window Rule */

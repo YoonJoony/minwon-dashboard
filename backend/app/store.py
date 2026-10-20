@@ -451,7 +451,7 @@ class Store:
                          f"앞 {STRIP_FORECAST_DAYS}칸은 예보, 뒤 칸은 참고(가능성). 특보 수준은 예보 값에 미국 기상청(NWS 뉴욕 지청) "
                          "기준을 대입한 판정이고, 'NWS'는 기준일까지 실제 발표된 특보입니다.")}
 
-    def _history(self, a: pd.Timestamp, d: pd.Timestamp, kind: str, has_alert: bool) -> dict:
+    def _history(self, a: pd.Timestamp, d: pd.Timestamp, kind: str) -> dict:
         """같은 종류 과거 사건: 고른 날짜의 해 전 7년, 해마다 같은 날짜 앞뒤 120일 안에서 가장 가까운 사건. 기준일 전에 끝난 사건만."""
         ev = self._wev[(self._wev.kind == kind) & (self._wev.win_end < a)] if len(self._wev) else pd.DataFrame()
         main = WEATHER_ISSUES[kind][0]
@@ -479,7 +479,7 @@ class Store:
         a_off, b_off = WEATHER_WINDOW[kind]
         word = "특보" if nws_based else "특보 수준"
         return {
-            "kind": kind, "kind_label": WEATHER_LABEL[kind], "has_alert": has_alert, "issues": WEATHER_ISSUES[kind],
+            "kind": kind, "kind_label": WEATHER_LABEL[kind], "issues": WEATHER_ISSUES[kind],
             "window_rule": f"영향 기간 = {word} 첫날{' 하루 전' if a_off < 0 else ''} ~ 마지막 날 {b_off}일 뒤",
             "basis": ("실제 발표된 NWS 홍수 주의보·돌발 홍수 경보가 걸린 날" if nws_based
                       else f"관측 날씨가 미국 기상청(NWS 뉴욕 지청) {WEATHER_LABEL[kind]} 특보 기준에 든 날"),
@@ -497,8 +497,9 @@ class Store:
         if not 0 <= k < STRIP_DAYS:
             raise HTTPException(400, f"날짜는 기준일부터 {STRIP_DAYS}일 안에서 고르세요.")
         day = self._strip_day(a, k)
+        # 그날 특보가 있는 종류만 과거 7년 표를 만듦 (특보 없는 날은 빈 목록 → 화면은 예보만)
         kinds = [x for x in WEATHER_LABEL if any(al["kind"] == x for al in day["alerts"])]
-        tabs = [self._history(a, d, kind, kind in kinds) for kind in (kinds or list(WEATHER_LABEL))]
+        tabs = [self._history(a, d, kind) for kind in kinds]
         return {"asof": _d(a), "day": day, "tabs": tabs,
                 "note": ("과거 7년은 고른 날짜의 해 전 7년이며, 해마다 같은 날짜 앞뒤 120일 안에서 가장 가까운 사건을 보여 줍니다. "
                          "기준일 전에 끝난 사건만 씁니다. 평소 = 영향 기간 직전 28일 중 다른 영향 기간을 뺀 날의 하루 중앙값, "

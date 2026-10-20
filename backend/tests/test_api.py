@@ -96,8 +96,9 @@ def test_weather_strip_uses_forecasts_known_at_asof():
 
 def test_weather_day_history_matches_verification_doc():
     w = client.get("/api/weather/day", params={"asof": "2025-06-20", "date": "2025-06-22"}).json()
+    assert [t["kind"] for t in w["tabs"]] == ["heat"]                # 그날 특보가 있는 종류만
     heat = w["tabs"][0]
-    assert heat["kind"] == "heat" and heat["has_alert"] and len(heat["years"]) == 7
+    assert len(heat["years"]) == 7
     y2024 = heat["years"][0]
     assert y2024["year"] == 2024
     e = y2024["event"]
@@ -107,17 +108,15 @@ def test_weather_day_history_matches_verification_doc():
     assert (hyd["received"], round(hyd["excess"]), hyd["processed"], hyd["open_end"], hyd["open_7"]) == (1459, 1300, 1300, 159, 12)
 
 
-def test_weather_day_rejects_out_of_strip_and_shows_all_tabs_without_alerts():
+def test_weather_day_rejects_out_of_strip_and_has_no_history_without_alerts():
     r = client.get("/api/weather/day", params={"asof": "2026-10-12", "date": "2026-10-25"})
     assert r.status_code == 400 and "8일" in r.json()["detail"]
     w = client.get("/api/weather/day", params={"asof": "2026-10-12", "date": "2026-10-14"}).json()
-    assert [t["kind"] for t in w["tabs"]] == ["heat", "snow", "wind", "rain"]
-    assert not any(t["has_alert"] for t in w["tabs"])
+    assert w["day"]["alerts"] == [] and w["tabs"] == []              # 특보 없는 날은 과거 7년 표 없음
 
 
 def test_weather_history_uses_only_events_before_asof():
-    w = client.get("/api/weather/day", params={"asof": "2024-02-05", "date": "2024-02-07"}).json()
-    for t in w["tabs"]:
-        for y in t["years"]:
-            if y["event"]:
-                assert y["event"]["win_end"] < "2024-02-05"
+    w = client.get("/api/weather/day", params={"asof": "2024-02-12", "date": "2024-02-13"}).json()
+    assert [t["kind"] for t in w["tabs"]] == ["snow"]                # 2024-02-13 대설 수준 예보
+    events = [y["event"] for y in w["tabs"][0]["years"] if y["event"]]
+    assert events and all(e["win_end"] < "2024-02-12" for e in events)

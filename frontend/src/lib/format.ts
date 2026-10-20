@@ -47,6 +47,8 @@ const d = (s: string) => parseISO(s)
 export const fmtDate = (s: string) => format(d(s), 'yyyy.MM.dd')
 /** '2026.10.12 (월)' */
 export const fmtDateW = (s: string) => format(d(s), 'yyyy.MM.dd (EEE)', { locale: ko })
+/** '2026.10.12(월)' — 기상 예보 모달 제목 */
+export const fmtYMDW = (s: string) => format(d(s), 'yyyy.MM.dd(EEE)', { locale: ko })
 /** '10/12' */
 export const fmtMD = (s: string) => format(d(s), 'M/d')
 /** '10/12(월)' */

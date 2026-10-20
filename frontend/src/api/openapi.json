@@ -2643,10 +2643,6 @@
       "type": "string",
       "title": "Kind Label"
      },
-     "has_alert": {
-      "type": "boolean",
-      "title": "Has Alert"
-     },
      "issues": {
       "items": {
        "type": "string"
@@ -2682,7 +2678,6 @@
     "required": [
      "kind",
      "kind_label",
-     "has_alert",
      "issues",
      "window_rule",
      "basis",

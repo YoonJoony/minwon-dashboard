@@ -316,7 +316,7 @@ class WeatherDay(BaseModel):
     offset: int            # 기준일부터 며칠 뒤 (0 = 기준일)
     label: str             # 오늘 / 월 / 화 …
     lead: int              # 며칠 전 발표된 예보인지
-    mode: str              # 예보(앞 4칸) / 참고(뒤 4칸, 가능성)
+    mode: str              # 예보(앞 4칸) / 참고(뒤 4칸, 가능성). 화면은 8칸을 같은 모양으로 표시
     icon: str | None       # clear / partly / cloudy / rain / snow / thunder
     icon_label: str | None
     tmax: float | None     # °C
@@ -368,7 +368,6 @@ class PastYear(BaseModel):
 class WeatherHistory(BaseModel):
     kind: str
     kind_label: str
-    has_alert: bool        # 고른 날 이 종류의 예보·발표 특보가 있는지
     issues: list[str]      # 대상 민원
     window_rule: str
     basis: str
@@ -380,5 +379,5 @@ class WeatherHistory(BaseModel):
 class WeatherDayOut(BaseModel):
     asof: str
     day: WeatherDay
-    tabs: list[WeatherHistory]
+    tabs: list[WeatherHistory]   # 그날 특보가 있는 종류만 (없으면 빈 목록)
     note: str

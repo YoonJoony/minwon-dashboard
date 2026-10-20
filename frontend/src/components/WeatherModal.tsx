@@ -2,29 +2,34 @@ import clsx from 'clsx'
 import { useState } from 'react'
 import type { PastYear, WeatherDay, WeatherDayOut, WeatherHistory } from '../api/client'
 import { useWeatherDay } from '../api/hooks'
-import { fmtDateW, fmtInt, fmtMD, fmtMDW } from '../lib/format'
+import { fmtInt, fmtMD, fmtYMDW } from '../lib/format'
 import { fmtBase, fmtExcess } from '../lib/weather'
 import { LEVEL_TONE, SKY_ICON, WX_ALERT_ICON } from './icons'
 import { ErrorState, Modal, Skeleton } from './ui'
 
-/** 예보 띠에서 고른 날: 그날 예보 + 같은 기상 이슈의 과거 7년 실제 민원 접수·처리 */
-export function WeatherModal({ asof, date, onClose }: { asof: string; date: string | null; onClose: () => void }) {
+/** 예보 띠에서 고른 날의 예보. 그날 특보가 있으면 같은 특보의 과거 7년 실제 민원 접수·처리 표를 함께 */
+export function WeatherModal({
+  asof,
+  date,
+  hasAlert,
+  onClose,
+}: {
+  asof: string
+  date: string | null
+  hasAlert: boolean
+  onClose: () => void
+}) {
   const { data, error, refetch } = useWeatherDay(asof, date)
   const ready = data && data.day.date === date
   return (
-    <Modal
-      open={date !== null}
-      onClose={onClose}
-      title={date ? `${fmtMDW(date)} 기상 예보와 과거 7년` : ''}
-      subtitle={`기준일 ${fmtDateW(asof)} · 기준일까지 알 수 있던 예보와 실제 기록만 씁니다`}
-    >
+    <Modal open={date !== null} onClose={onClose} title={date ? `${fmtYMDW(date)} 기상 예보` : ''} width={hasAlert ? 1000 : 560}>
       {error && !ready ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : !ready ? (
         <div className="space-y-3">
           <Skeleton className="h-24" />
-          <Skeleton className="h-10" />
-          <Skeleton className="h-72" />
+          {hasAlert && <Skeleton className="h-10" />}
+          {hasAlert && <Skeleton className="h-72" />}
         </div>
       ) : (
         <Body key={data.day.date} data={data} />
@@ -35,17 +40,14 @@ export function WeatherModal({ asof, date, onClose }: { asof: string; date: stri
 
 function Body({ data }: { data: WeatherDayOut }) {
   const [tab, setTab] = useState(0)
+  // 특보 없는 날은 과거 7년 표 없이 그날 예보만
+  if (!data.tabs.length) return <DaySummary d={data.day} />
   const h = data.tabs[Math.min(tab, data.tabs.length - 1)]
-  const anyAlert = data.tabs.some((t) => t.has_alert)
   return (
     <div>
       <DaySummary d={data.day} />
-      {!anyAlert && (
-        <p className="mt-3 rounded-xl bg-page px-4 py-2.5 text-[13px] text-mute">
-          이날은 특보 수준 날씨 예보가 없습니다. 아래에서 같은 시기 과거 기상 이슈를 참고로 볼 수 있습니다.
-        </p>
-      )}
-      <div className="mt-5 flex flex-wrap gap-1.5" role="tablist" aria-label="기상 이슈">
+      <h3 className="mt-6 text-[15px] font-semibold text-ink">과거 7년 같은 특보 때 민원</h3>
+      <div className="mt-3 flex flex-wrap gap-1.5" role="tablist" aria-label="기상 이슈">
         {data.tabs.map((t, i) => {
           const Icon = WX_ALERT_ICON[t.kind]
           const on = i === tab
@@ -63,11 +65,6 @@ function Body({ data }: { data: WeatherDayOut }) {
             >
               <Icon size={16} aria-hidden="true" />
               {t.kind_label}
-              {t.has_alert && (
-                <span className={clsx('rounded-md px-1.5 py-0.5 text-[11px]', on ? 'bg-white/15' : 'bg-[#fdf0ef] text-[#c2362d]')}>
-                  이날 특보
-                </span>
-              )}
             </button>
           )
         })}
@@ -99,21 +96,19 @@ function DaySummary({ d }: { d: WeatherDay }) {
             {d.gust != null && ` · 최대 돌풍 ${Math.round(d.gust)}km/h`}
           </p>
           <p className="mt-0.5 text-[12px] text-faint">
-            {d.offset === 0 ? '전날' : '기준일'} 발표 예보({d.lead}일 전) ·{' '}
-            <b className={clsx('font-semibold', d.mode === '예보' ? 'text-brand' : 'text-faint')}>
-              {d.mode === '예보' ? '예보' : '참고(가능성)'}
-            </b>
+            {d.offset === 0 ? '전날' : '기준일'} 발표 예보 ({d.lead}일 전)
           </p>
         </div>
       </div>
-      <ul className="flex min-w-0 flex-1 flex-wrap gap-2">
+      <ul className="flex min-w-0 flex-[1_1_160px] flex-wrap gap-2">
+        {d.alerts.length === 0 && <li className="rounded-xl bg-page px-3 py-1.5 text-[13px] text-mute">특보 없음</li>}
         {d.alerts.map((a, i) => {
           const Icon = WX_ALERT_ICON[a.kind]
           const tone = LEVEL_TONE[a.level] ?? LEVEL_TONE[1]
           return (
             <li
               key={`${a.label}${i}`}
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px]"
+              className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-xl px-3 py-1.5 text-[13px]"
               style={{ background: tone.bg, color: tone.fg }}
             >
               <Icon size={15} color={tone.icon} aria-hidden="true" />
@@ -230,7 +225,7 @@ function YearRow({
     <tr>
       <td className={cell}>
         <b className="font-semibold text-ink num">{y.year}</b>
-        <span className="block text-[11px] text-faint">같은 시기 {y.count}회</span>
+        <span className="block whitespace-nowrap text-[11px] text-faint">같은 시기 {y.count}회</span>
       </td>
       <td className={cell}>
         <span className="flex items-center gap-2">
@@ -238,13 +233,13 @@ function YearRow({
             <Icon size={15} color={tone.icon} aria-hidden="true" />
           </span>
           <span>
-            <span className="font-semibold text-ink num">
+            <span className="whitespace-nowrap font-semibold text-ink num">
               {/* 겨울처럼 해를 넘는 시기는 사건 연도를 함께 */}
               {Number(e.start.slice(0, 4)) !== y.year && `${e.start.slice(0, 4)}. `}
               {fmtMD(e.start)}
               {e.end !== e.start && `~${fmtMD(e.end)}`}
             </span>{' '}
-            <span className="text-[12px] font-semibold" style={{ color: tone.fg }}>
+            <span className="whitespace-nowrap text-[12px] font-semibold" style={{ color: tone.fg }}>
               {e.level_label}
             </span>
             <span className="block text-[11px] text-faint">

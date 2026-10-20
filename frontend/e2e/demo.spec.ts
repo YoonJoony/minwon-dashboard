@@ -146,19 +146,46 @@ test('부서 선택: 환경보호국으로 바꾸면 주소에 agency=DEP', asyn
   expect(errors, '콘솔 오류·외부 요청').toEqual([])
 })
 
-test('7일 기상 예보 띠 → 과거 7년 모달 (폭염 시나리오)', async ({ page, request }) => {
+test('7일 기상 예보 띠 → 기상 예보 모달 (폭염 시나리오)', async ({ page, request }) => {
   const steps = await demoSteps(request)
   const s1 = steps[DEMO_ORDER.indexOf('S1')]
   const errors = await open(page, `/?asof=${s1.asof}&start=${s1.start}&end=${s1.end}`)
   const strip = page.getByRole('group', { name: '7일 기상 예보' })
   await expect(strip.getByRole('button')).toHaveCount(8)
+  // 특보 있는 날: 그날 예보 + 같은 특보의 과거 7년 표
   await strip.getByRole('button', { name: /^6\/22/ }).click()
-  const dialog = page.getByRole('dialog', { name: /6\/22.*과거 7년/ })
+  const dialog = page.getByRole('dialog', { name: '2025.06.22(일) 기상 예보' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('tab', { name: /폭염/ })).toHaveAttribute('aria-selected', 'true')
   await expect(dialog.getByText('NWS 발표', { exact: false }).first()).toBeVisible()
   await expect(dialog.locator('tbody tr')).toHaveCount(7)
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
+  // 특보 없는 날: 그날 예보만, 과거 7년 표 없음
+  await strip.getByRole('button', { name: /^6\/21/ }).click()
+  const quiet = page.getByRole('dialog', { name: '2025.06.21(토) 기상 예보' })
+  await expect(quiet.getByText('특보 없음')).toBeVisible()
+  await expect(quiet.locator('table')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  expect(errors, '콘솔 오류·외부 요청').toEqual([])
+})
+
+test('모바일 폭(390px)에서 기상 예보 띠 8칸이 화면 안에 다 들어감', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const errors = await open(page, '/')
+  const strip = page.getByRole('group', { name: '7일 기상 예보' })
+  await expect(strip.getByRole('button')).toHaveCount(8)
+  const fit = await page.evaluate(() => {
+    const w = document.documentElement.clientWidth
+    const cells = [...document.querySelectorAll('[aria-label="7일 기상 예보"] button')]
+    return {
+      page: document.documentElement.scrollWidth <= w, // 화면 전체가 옆으로 밀리지 않음
+      cells: cells.every((c) => {
+        const r = c.getBoundingClientRect()
+        return r.left >= 0 && r.right <= w && c.scrollWidth <= c.clientWidth + 1 // 칸이 화면 안, 내용이 칸 안
+      }),
+    }
+  })
+  expect(fit).toEqual({ page: true, cells: true })
   expect(errors, '콘솔 오류·외부 요청').toEqual([])
 })

@@ -26,10 +26,11 @@ const Divider = ({ className }: { className?: string }) => (
 export function Header() {
   return (
     <header className="border-b border-line bg-page">
-      <div className="mx-auto flex h-[72px] max-w-[1680px] items-center gap-5 px-5 lg:px-10">
+      <div className="mx-auto flex h-[72px] max-w-[1680px] items-center gap-3 px-5 sm:gap-5 lg:px-10">
         <a href="/" className="flex shrink-0 items-center gap-2.5" aria-label="스마트 민원케어 처음 화면">
           <LogoMark />
-          <span className="text-[21px] font-bold tracking-[-0.02em] text-ink">스마트 민원케어</span>
+          {/* 모바일은 로고 글자를 빼서 부서 선택·알림이 화면 밖으로 밀리지 않게 */}
+          <span className="hidden text-[21px] font-bold tracking-[-0.02em] text-ink sm:inline">스마트 민원케어</span>
         </a>
         <Divider className="hidden sm:block" />
         <AgencySelect />
