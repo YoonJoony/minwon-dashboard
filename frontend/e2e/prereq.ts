@@ -5,8 +5,9 @@ import { fileURLToPath } from 'node:url'
 /** 프로젝트 루트 (minwon-dashboard/) */
 export const ROOT = fileURLToPath(new URL('../../', import.meta.url))
 
-/** 시연 때와 같은 구성: FastAPI 하나가 API와 빌드된 화면(frontend/dist)을 함께 내보냄 */
-export const BASE_URL = 'http://127.0.0.1:8000'
+/** 시연 때와 같은 구성: FastAPI 하나가 API와 빌드된 화면(frontend/dist)을 함께 내보냄 (기본 8000번, E2E_PORT로 바꿀 수 있음) */
+export const PORT = process.env.E2E_PORT ?? '8000'
+export const BASE_URL = `http://127.0.0.1:${PORT}`
 
 /** 단계별 전체 화면을 저장하는 곳 (git 제외) */
 export const SCREENS_DIR = join(ROOT, 'frontend', 'e2e-screens')

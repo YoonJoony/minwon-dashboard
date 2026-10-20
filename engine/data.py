@@ -4,7 +4,7 @@ from functools import lru_cache
 
 import pandas as pd
 
-from engine.config import AGENCIES, PROCESSED, RAW_WEATHER
+from engine.config import AGENCIES, PROCESSED, RAW_NWS, RAW_WEATHER
 
 HOURLY_COLS = ["t", "rh", "prcp", "snow", "wind", "gust"]
 _HOURLY_VARS = ["temperature_2m", "relative_humidity_2m", "precipitation", "snowfall", "wind_speed_10m", "wind_gusts_10m"]
@@ -53,6 +53,21 @@ def forecast_lead(lead: int) -> pd.DataFrame:
     out = f[["time"] + cols].copy()
     out.columns = ["time"] + HOURLY_COLS
     return out
+
+
+def forecast_lead_sky(lead: int) -> pd.DataFrame:
+    """forecast_lead + 날씨 코드(code, WMO)·전운량(cloud, %). 예보 띠 아이콘용."""
+    f = hourly_forecast()
+    out = forecast_lead(lead)
+    out["code"] = f[f"weather_code_previous_day{lead}"].to_numpy()
+    out["cloud"] = f[f"cloud_cover_previous_day{lead}"].to_numpy()
+    return out
+
+
+@lru_cache(maxsize=1)
+def nws_alerts_raw() -> pd.DataFrame:
+    """실제 발표된 NWS 특보 기록 (pipelines/fetch_nws_alerts.py, IEM 보관소)."""
+    return pd.read_csv(RAW_NWS / "nws_alerts_bronx.csv")
 
 
 # ------------------------------------------------------------------ 미국 연방 공휴일 (pipelines/merge_weather.py와 같은 규칙)

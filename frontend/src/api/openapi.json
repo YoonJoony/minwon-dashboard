@@ -594,6 +594,101 @@
     }
    }
   },
+  "/api/weather/strip": {
+   "get": {
+    "summary": "Weather Strip",
+    "description": "7일 기상 예보 띠: 기준일 포함 8일의 날씨 아이콘·기온·강수, 특보 수준(예보 판정), 기준일까지 발표된 NWS 특보.",
+    "operationId": "weather_strip_api_weather_strip_get",
+    "parameters": [
+     {
+      "name": "asof",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나",
+       "title": "Asof"
+      },
+      "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WeatherStripOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/weather/day": {
+   "get": {
+    "summary": "Weather Day",
+    "description": "예보 띠에서 고른 날: 그날 예보와, 같은 기상 이슈의 과거 7년 실제 민원 접수·처리 (특보 종류별 탭).",
+    "operationId": "weather_day_api_weather_day_get",
+    "parameters": [
+     {
+      "name": "asof",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나",
+       "title": "Asof"
+      },
+      "description": "기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나"
+     },
+     {
+      "name": "date",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "description": "예보 띠에서 고른 날짜 (기준일 ~ +7일)",
+       "title": "Date"
+      },
+      "description": "예보 띠에서 고른 날짜 (기준일 ~ +7일)"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WeatherDayOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/evidence": {
    "get": {
     "summary": "Evidence",
@@ -1605,6 +1700,164 @@
     ],
     "title": "PairItem"
    },
+   "PastEvent": {
+    "properties": {
+     "start": {
+      "type": "string",
+      "title": "Start"
+     },
+     "end": {
+      "type": "string",
+      "title": "End"
+     },
+     "level": {
+      "type": "integer",
+      "title": "Level"
+     },
+     "level_label": {
+      "type": "string",
+      "title": "Level Label"
+     },
+     "win_start": {
+      "type": "string",
+      "title": "Win Start"
+     },
+     "win_end": {
+      "type": "string",
+      "title": "Win End"
+     },
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "nws": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Nws"
+     },
+     "surge": {
+      "type": "boolean",
+      "title": "Surge"
+     },
+     "issues": {
+      "items": {
+       "$ref": "#/components/schemas/PastIssue"
+      },
+      "type": "array",
+      "title": "Issues"
+     }
+    },
+    "type": "object",
+    "required": [
+     "start",
+     "end",
+     "level",
+     "level_label",
+     "win_start",
+     "win_end",
+     "days",
+     "nws",
+     "surge",
+     "issues"
+    ],
+    "title": "PastEvent"
+   },
+   "PastIssue": {
+    "properties": {
+     "issue": {
+      "type": "string",
+      "title": "Issue"
+     },
+     "base": {
+      "type": "number",
+      "title": "Base"
+     },
+     "received": {
+      "type": "integer",
+      "title": "Received"
+     },
+     "excess": {
+      "type": "number",
+      "title": "Excess"
+     },
+     "processed": {
+      "type": "integer",
+      "title": "Processed"
+     },
+     "open_end": {
+      "type": "integer",
+      "title": "Open End"
+     },
+     "open_7": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Open 7"
+     },
+     "peak": {
+      "type": "integer",
+      "title": "Peak"
+     },
+     "surge": {
+      "type": "boolean",
+      "title": "Surge"
+     }
+    },
+    "type": "object",
+    "required": [
+     "issue",
+     "base",
+     "received",
+     "excess",
+     "processed",
+     "open_end",
+     "open_7",
+     "peak",
+     "surge"
+    ],
+    "title": "PastIssue"
+   },
+   "PastYear": {
+    "properties": {
+     "year": {
+      "type": "integer",
+      "title": "Year"
+     },
+     "compare_date": {
+      "type": "string",
+      "title": "Compare Date"
+     },
+     "count": {
+      "type": "integer",
+      "title": "Count"
+     },
+     "event": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PastEvent"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "year",
+     "compare_date",
+     "count",
+     "event"
+    ],
+    "title": "PastYear"
+   },
    "Period": {
     "properties": {
      "asof": {
@@ -2180,6 +2433,290 @@
      "type"
     ],
     "title": "ValidationError"
+   },
+   "WeatherAlert": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "kind_label": {
+      "type": "string",
+      "title": "Kind Label"
+     },
+     "level": {
+      "type": "integer",
+      "title": "Level"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "issued": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Issued"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "kind_label",
+     "level",
+     "label",
+     "source"
+    ],
+    "title": "WeatherAlert"
+   },
+   "WeatherDay": {
+    "properties": {
+     "date": {
+      "type": "string",
+      "title": "Date"
+     },
+     "offset": {
+      "type": "integer",
+      "title": "Offset"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "lead": {
+      "type": "integer",
+      "title": "Lead"
+     },
+     "mode": {
+      "type": "string",
+      "title": "Mode"
+     },
+     "icon": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Icon"
+     },
+     "icon_label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Icon Label"
+     },
+     "tmax": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tmax"
+     },
+     "tmin": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tmin"
+     },
+     "prcp": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Prcp"
+     },
+     "snow": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Snow"
+     },
+     "gust": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gust"
+     },
+     "alerts": {
+      "items": {
+       "$ref": "#/components/schemas/WeatherAlert"
+      },
+      "type": "array",
+      "title": "Alerts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "date",
+     "offset",
+     "label",
+     "lead",
+     "mode",
+     "icon",
+     "icon_label",
+     "tmax",
+     "tmin",
+     "prcp",
+     "snow",
+     "gust",
+     "alerts"
+    ],
+    "title": "WeatherDay"
+   },
+   "WeatherDayOut": {
+    "properties": {
+     "asof": {
+      "type": "string",
+      "title": "Asof"
+     },
+     "day": {
+      "$ref": "#/components/schemas/WeatherDay"
+     },
+     "tabs": {
+      "items": {
+       "$ref": "#/components/schemas/WeatherHistory"
+      },
+      "type": "array",
+      "title": "Tabs"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "asof",
+     "day",
+     "tabs",
+     "note"
+    ],
+    "title": "WeatherDayOut"
+   },
+   "WeatherHistory": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "kind_label": {
+      "type": "string",
+      "title": "Kind Label"
+     },
+     "has_alert": {
+      "type": "boolean",
+      "title": "Has Alert"
+     },
+     "issues": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Issues"
+     },
+     "window_rule": {
+      "type": "string",
+      "title": "Window Rule"
+     },
+     "basis": {
+      "type": "string",
+      "title": "Basis"
+     },
+     "total_events": {
+      "type": "integer",
+      "title": "Total Events"
+     },
+     "surged_events": {
+      "type": "integer",
+      "title": "Surged Events"
+     },
+     "years": {
+      "items": {
+       "$ref": "#/components/schemas/PastYear"
+      },
+      "type": "array",
+      "title": "Years"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "kind_label",
+     "has_alert",
+     "issues",
+     "window_rule",
+     "basis",
+     "total_events",
+     "surged_events",
+     "years"
+    ],
+    "title": "WeatherHistory"
+   },
+   "WeatherStripOut": {
+    "properties": {
+     "asof": {
+      "type": "string",
+      "title": "Asof"
+     },
+     "days": {
+      "items": {
+       "$ref": "#/components/schemas/WeatherDay"
+      },
+      "type": "array",
+      "title": "Days"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "asof",
+     "days",
+     "note"
+    ],
+    "title": "WeatherStripOut"
    }
   }
  }

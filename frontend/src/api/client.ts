@@ -17,6 +17,13 @@ export type MatrixItem = S['MatrixItem']
 export type StaffingOut = S['StaffingOut']
 export type RiskOut = S['RiskOut']
 export type EvidenceOut = S['EvidenceOut']
+export type WeatherStripOut = S['WeatherStripOut']
+export type WeatherDay = S['WeatherDay']
+export type WeatherAlert = S['WeatherAlert']
+export type WeatherDayOut = S['WeatherDayOut']
+export type WeatherHistory = S['WeatherHistory']
+export type PastYear = S['PastYear']
+export type PastIssue = S['PastIssue']
 
 /** API 오류를 한국어 메시지로 바꿔 던집니다. */
 export function unwrap<T>(res: { data?: T; error?: unknown; response: Response }): T {

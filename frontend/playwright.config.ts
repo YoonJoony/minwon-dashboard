@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test'
-import { BASE_URL, ROOT, missingPrereqs } from './e2e/prereq'
+import { BASE_URL, PORT, ROOT, missingPrereqs } from './e2e/prereq'
 
 // 시연 화면 자동 점검 (npm run e2e). 시연 때처럼 서버 하나(8000번)가 API와 빌드된 화면을 함께 내보내는 구성을 확인합니다.
 // 8000번에 서버가 이미 떠 있으면 그대로 쓰고, 없으면 여기서 띄웠다가 점검이 끝나면 끕니다.
@@ -23,7 +23,7 @@ export default defineConfig({
   // 준비물(사전 계산 결과·화면 빌드)이 없으면 서버를 띄우지 않고, 점검은 e2e/demo.spec.ts에서 건너뜁니다.
   webServer: ready
     ? {
-        command: 'uv run uvicorn app.main:app --app-dir backend --port 8000',
+        command: `uv run uvicorn app.main:app --app-dir backend --port ${PORT}`,
         cwd: ROOT,
         url: `${BASE_URL}/api/health`,
         reuseExistingServer: true,

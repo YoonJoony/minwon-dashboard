@@ -80,3 +80,22 @@ export function useEvidence() {
     staleTime: Infinity,
   })
 }
+
+/** 7일 기상 예보 띠 (기준일마다) */
+export function useWeatherStrip(asof: string) {
+  return useQuery({
+    queryKey: ['weather-strip', asof],
+    queryFn: async () => unwrap(await api.GET('/api/weather/strip', { params: { query: { asof } } })),
+    ...keep,
+  })
+}
+
+/** 예보 띠에서 고른 날의 예보와 과거 7년 (모달을 열 때만) */
+export function useWeatherDay(asof: string, date: string | null) {
+  return useQuery({
+    queryKey: ['weather-day', asof, date],
+    queryFn: async () =>
+      unwrap(await api.GET('/api/weather/day', { params: { query: { asof, date: date as string } } })),
+    enabled: date !== null,
+  })
+}

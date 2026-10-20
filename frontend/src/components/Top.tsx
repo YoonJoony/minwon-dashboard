@@ -3,6 +3,7 @@ import { fmtDateW, fmtRange } from '../lib/format'
 import { useDash } from '../state/dashboard'
 import { AsofPicker, PeriodPicker, SettingsButton } from './Controls'
 import { OutlineButton } from './ui'
+import { WeatherStrip } from './WeatherStrip'
 
 /* ------------------------------------------------------------------ 탭 */
 
@@ -11,17 +12,19 @@ export function TabBar() {
   const demo = state.demo !== null
   return (
     <nav className="border-b border-line bg-page" aria-label="화면">
-      <div className="mx-auto flex h-[68px] max-w-[1680px] items-center gap-2 px-5 lg:px-10">
+      <div className="mx-auto flex min-h-[68px] max-w-[1680px] flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2 lg:px-10">
         <span
           aria-current="page"
           className="inline-flex items-center gap-2 rounded-xl bg-brand-tint px-4 py-2.5 text-[15px] font-semibold text-brand"
         >
           <LayoutGrid size={18} strokeWidth={2} /> 대시보드
         </span>
+        {/* 탭 줄 가운데 7일 기상 예보 띠 (좁은 화면에서는 아래 줄로) */}
+        <WeatherStrip className="order-last flex w-full justify-center xl:order-none xl:w-auto xl:flex-1" />
         <button
           type="button"
           onClick={demo ? stopDemo : startDemo}
-          className="ml-auto inline-flex h-11 items-center gap-2 rounded-xl bg-navy px-4 text-[15px] font-semibold text-white shadow-[0_6px_16px_-8px_rgba(31,27,77,0.8)] transition hover:bg-[#2a2563]"
+          className="ml-auto inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-navy px-4 text-[15px] font-semibold text-white shadow-[0_6px_16px_-8px_rgba(31,27,77,0.8)] transition hover:bg-[#2a2563] xl:ml-0"
         >
           {demo ? <Square size={15} fill="currentColor" /> : <Presentation size={18} />}
           {demo ? '시연 종료' : '시연 모드'}

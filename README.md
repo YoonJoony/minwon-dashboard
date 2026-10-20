@@ -2,12 +2,13 @@
 
 부서와 기간을 선택하면 그 기간의 **민원 집중도(예상 건수, 예상 이슈, 2×2 위험 매트릭스)** 를 미리 보여 주고, 집중도가 높은 부서에 인력을 연결하도록 돕는 행정 지원 대시보드입니다. 전무님 평가·정부 제출용 시연을 목표로 합니다.
 
-화면 구성: 헤더(부서 선택·기상 특보 알림) → 기준일·기간 선택 → 핵심 지표 5개 → 예상 접수 추이 · 예상 이슈 · 부서 위험 매트릭스 · 인력 지원 권고 · 부서별 현황 · 지연 위험 민원, 그리고 시연 모드(시나리오 5개)와 검증 근거 창.
+화면 구성: 헤더(부서 선택·기상 특보 알림) → 탭 줄 가운데 7일 기상 예보 띠(칸을 누르면 같은 기상 이슈의 과거 7년 민원 접수·처리) → 기준일·기간 선택 → 핵심 지표 5개 → 예상 접수 추이 · 예상 이슈 · 부서 위험 매트릭스 · 인력 지원 권고 · 부서별 현황 · 지연 위험 민원, 그리고 시연 모드(시나리오 5개)와 검증 근거 창.
 
 - 기획 기준 문서: [docs/서비스기획_정리.md](docs/서비스기획_정리.md)
 - 검증 결과 (10년치): [docs/검증결과_10년.md](docs/검증결과_10년.md)
 - 시연 리허설 검증: [docs/리허설_검증.md](docs/리허설_검증.md)
 - 개발 설계: [docs/개발설계.md](docs/개발설계.md)
+- 7일 기상 예보 띠·과거 7년 모달 검증: [docs/기상예보_기능_검증.md](docs/기상예보_기능_검증.md)
 - 데이터 설명: [data/NYC311_컬럼설명.md](data/NYC311_컬럼설명.md), [data/processed/README.md](data/processed/README.md)
 
 ## 구성
@@ -61,7 +62,7 @@ cd frontend && npm run e2e                                  # 시연 화면 점�
 cd frontend && npm run gen:api                              # API 응답 형식을 바꾼 뒤 TypeScript 타입 다시 만들기
 ```
 
-`npm run e2e`는 시연 때와 같은 구성(서버 하나, 8000번)으로 최신 화면과 시연 5단계를 차례로 열어, 단계마다 콘솔 오류·외부 주소 요청이 없는지, 핵심 지표 5칸과 패널 6개가 그려지는지, "불러오기 실패"가 없는지, 차트 2개의 크기가 0이 아닌지, 남색 띠에 시나리오 제목이 나오는지 확인합니다. 시연 막대의 "다음 단계" 버튼과 부서 선택(환경보호국 → 주소에 `agency=DEP`)도 눌러 봅니다. 단계별 전체 화면(1440×900)은 `frontend/e2e-screens/`에 저장됩니다(git 제외).
+`npm run e2e`는 시연 때와 같은 구성(서버 하나, 8000번)으로 최신 화면과 시연 5단계를 차례로 열어, 단계마다 콘솔 오류·외부 주소 요청이 없는지, 핵심 지표 5칸과 패널 6개가 그려지는지, "불러오기 실패"가 없는지, 차트 2개의 크기가 0이 아닌지, 남색 띠에 시나리오 제목이 나오는지 확인합니다. 시연 막대의 "다음 단계" 버튼과 부서 선택(환경보호국 → 주소에 `agency=DEP`)도 눌러 봅니다. 단계별 전체 화면(1440×900)은 `frontend/e2e-screens/`에 저장됩니다(git 제외). 7일 기상 예보 띠를 눌러 과거 7년 모달이 열리는지도 확인합니다. 8000번이 아닌 서버로 점검하려면 `E2E_PORT=8001 npm run e2e`처럼 포트를 지정합니다.
 - 처음 한 번: `cd frontend && npx playwright install chromium` (점검용 브라우저. 이후에는 인터넷 없이 동작)
 - 8000번에 서버가 이미 떠 있으면 그 서버를 쓰고, 없으면 직접 띄웠다가 점검이 끝나면 끕니다.
 - 빌드된 화면(`frontend/dist`)을 확인하므로 화면 코드를 고쳤다면 `npm run build`를 먼저 하세요. 사전 계산 결과(`data/artifacts`)나 화면 빌드가 없으면 할 일을 알려 주고 건너뜁니다.
@@ -78,8 +79,10 @@ uv run python pipelines/fetch_openmeteo.py --start 2016-01-01 --end 2026-10-13
 uv run python pipelines/merge_weather.py
 # 과거 예보 기록 (경보 검증·과거 시점 재현용)
 uv run python pipelines/fetch_openmeteo_forecasts.py --start 2022-01-01 --end 2026-10-12
-# 시간별 관측·예보, 미국 단위 (NWS 특보 기준 계산용)
-uv run python pipelines/fetch_openmeteo_hourly.py --start 2016-01-01 --end 2026-10-12 --forecast-start 2022-01-01
+# 시간별 관측·예보(1~7일 전, 날씨 코드·전운량 포함), 미국 단위 (NWS 특보 기준 계산·예보 띠용)
+uv run python pipelines/fetch_openmeteo_hourly.py --start 2016-01-01 --end 2026-10-19 --forecast-start 2022-01-01
+# 실제 발표된 미국 기상청(NWS) 특보 기록 (IEM 보관소, 브롱크스)
+uv run python pipelines/fetch_nws_alerts.py --start 2016-01-01 --end 2026-10-20
 ```
 
 ## 검증 다시 실행하기
@@ -97,5 +100,7 @@ uv run python analysis/verify_complementarity.py     # 과부하·지원 가능 
 uv run python analysis/verify_matrix_y_stability.py  # 매트릭스 세로축 후보 안정성
 uv run python analysis/verify_alert_uplift.py 3      # 기상 특보 영향 부서 규칙 (1·2는 건수 보정 시험)
 uv run python analysis/rehearsal_scenarios.py       # 시연 시나리오 4개 재현, 매트릭스 그림 docs/rehearsal/
+uv run python analysis/verify_weather_events.py     # 기상 사건별 영향 기간·민원 처리 현황 (예보 띠·모달 설계)
+uv run python analysis/verify_forecast_strip.py     # 7일 예보 띠 정확도, 날씨 아이콘, 실제 NWS 특보와 비교
 ```
 한 달·분기 예측과 이슈 빈도 검증 결과는 [docs/검증결과_10년.md](docs/검증결과_10년.md) ①·⑤를 보세요.

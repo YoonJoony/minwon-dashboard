@@ -299,3 +299,86 @@ class EvidenceSection(BaseModel):
 class EvidenceOut(BaseModel):
     sections: list[EvidenceSection]
     sources: list[str]
+
+
+# ------------------------------------------------------------------ 7일 기상 예보 띠 · 과거 7년 모달
+class WeatherAlert(BaseModel):
+    kind: str              # heat / snow / wind / rain
+    kind_label: str        # 폭염 / 대설 / 강풍 / 호우
+    level: int             # 0 예비특보 · 1 주의보 · 2 경보
+    label: str             # "폭염경보 수준"(예보 판정) 또는 "극한 폭염 경보"(NWS 발표)
+    source: str            # 예보 / NWS
+    issued: str | None = None   # NWS 발표 시각 (뉴욕 시각)
+
+
+class WeatherDay(BaseModel):
+    date: str
+    offset: int            # 기준일부터 며칠 뒤 (0 = 기준일)
+    label: str             # 오늘 / 월 / 화 …
+    lead: int              # 며칠 전 발표된 예보인지
+    mode: str              # 예보(앞 4칸) / 참고(뒤 4칸, 가능성)
+    icon: str | None       # clear / partly / cloudy / rain / snow / thunder
+    icon_label: str | None
+    tmax: float | None     # °C
+    tmin: float | None
+    prcp: float | None     # mm
+    snow: float | None     # cm
+    gust: float | None     # km/h
+    alerts: list[WeatherAlert]
+
+
+class WeatherStripOut(BaseModel):
+    asof: str
+    days: list[WeatherDay]
+    note: str
+
+
+class PastIssue(BaseModel):
+    issue: str
+    base: float            # 평소 하루 건수
+    received: int          # 영향 기간 접수
+    excess: float          # 늘어난 건수 = 접수 − 평소 × 영향 일수
+    processed: int         # 영향 기간 내 처리
+    open_end: int          # 미처리 (영향 기간 끝)
+    open_7: int | None     # 미처리 (영향 기간 끝 + 7일). 기준일에 아직 알 수 없으면 없음
+    peak: int              # 영향 기간 중 하루 최대 접수
+    surge: bool            # 민원 급증 여부 (평소의 2배 이상이고 20건 이상인 날이 있었나)
+
+
+class PastEvent(BaseModel):
+    start: str
+    end: str
+    level: int
+    level_label: str
+    win_start: str
+    win_end: str
+    days: int
+    nws: list[str]         # 그 기간 실제 발표된 NWS 특보
+    surge: bool
+    issues: list[PastIssue]
+
+
+class PastYear(BaseModel):
+    year: int
+    compare_date: str      # 그 해 같은 날짜
+    count: int             # 같은 시기(앞뒤 120일) 같은 종류 사건 수
+    event: PastEvent | None
+
+
+class WeatherHistory(BaseModel):
+    kind: str
+    kind_label: str
+    has_alert: bool        # 고른 날 이 종류의 예보·발표 특보가 있는지
+    issues: list[str]      # 대상 민원
+    window_rule: str
+    basis: str
+    total_events: int      # 기준일 전에 끝난 같은 종류 사건 수 (2016~)
+    surged_events: int     # 그중 민원 급증
+    years: list[PastYear]
+
+
+class WeatherDayOut(BaseModel):
+    asof: str
+    day: WeatherDay
+    tabs: list[WeatherHistory]
+    note: str

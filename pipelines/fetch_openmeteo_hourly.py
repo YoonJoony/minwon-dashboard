@@ -7,10 +7,11 @@
 
 단위는 NWS 기준과 같게 받습니다: 기온 °F, 풍속 mph, 강수·적설 inch.
 시간은 뉴욕 현지 시각입니다.
+날씨 코드(weather_code, 세계기상기구 WMO 코드)와 전운량(cloud_cover, %)도 받습니다 (7일 기상 예보 띠 아이콘용).
 
 출력
     data/raw/weather/openmeteo_bronx_hourly_obs.parquet        관측 (Archive API)
-    data/raw/weather/openmeteo_bronx_hourly_forecast.parquet   1·2·3·5·7일 전 발표 예보 (Previous Runs API)
+    data/raw/weather/openmeteo_bronx_hourly_forecast.parquet   1~7일 전 발표 예보 (Previous Runs API)
 
 사용 예 (프로젝트 루트에서):
     uv run python pipelines/fetch_openmeteo_hourly.py --start 2016-01-01 --end 2026-10-12 --forecast-start 2022-01-01
@@ -33,8 +34,10 @@ ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 PREVIOUS = "https://previous-runs-api.open-meteo.com/v1/forecast"
 TIMEZONE = "America/New_York"
 LAT, LON = 40.84, -73.87
-VARS = ["temperature_2m", "relative_humidity_2m", "precipitation", "snowfall", "wind_speed_10m", "wind_gusts_10m"]
-LEADS = [1, 2, 3, 5, 7]
+VARS = ["temperature_2m", "relative_humidity_2m", "precipitation", "snowfall", "wind_speed_10m", "wind_gusts_10m",
+        "weather_code", "cloud_cover"]
+LEADS = [1, 2, 3, 4, 5, 6, 7]
+CACHE_TAG = "v2"   # 변수·예보 시점을 늘린 판 (예전 캐시와 섞이지 않게)
 UNITS = {"temperature_unit": "fahrenheit", "wind_speed_unit": "mph", "precipitation_unit": "inch"}
 
 
@@ -45,6 +48,8 @@ def get(url: str) -> dict:
             req = urllib.request.Request(url, headers={"User-Agent": "minwon-dashboard/0.1"})
             with urllib.request.urlopen(req, timeout=180) as r:
                 return json.loads(r.read().decode("utf-8"))
+        except json.JSONDecodeError as e:          # 큰 요청에 빈 응답이 오는 경우가 있어 다시 시도
+            last = e
         except urllib.error.HTTPError as e:
             if e.code not in {429, 500, 502, 503, 504}:
                 raise RuntimeError(f"HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:500]}") from e
@@ -85,10 +90,13 @@ def main(argv: list[str] | None = None) -> int:
     obs, fc = [], []
     for y in range(a.start.year, a.end.year + 1):
         s, e = max(a.start, date(y, 1, 1)), min(a.end, date(y, 12, 31))
-        obs.append(fetch(ARCHIVE, VARS, s, e, cache, "obs"))
+        obs.append(fetch(ARCHIVE, VARS, s, e, cache, f"obs_{CACHE_TAG}"))
         if e >= a.forecast_start:
-            fs = max(s, a.forecast_start)
-            fc.append(fetch(PREVIOUS, [f"{v}_previous_day{d}" for v in VARS for d in LEADS], fs, e, cache, "fc"))
+            # 예보는 열이 많아(8개 변수 × 7개 시점) 한 해를 한 번에 받으면 응답이 비는 경우가 있어 분기로 나눔
+            for q in pd.date_range(max(s, a.forecast_start), e, freq="QS"):
+                qs = max(q.date(), s, a.forecast_start)
+                qe = min((q + pd.offsets.QuarterEnd(0)).date(), e)
+                fc.append(fetch(PREVIOUS, [f"{v}_previous_day{d}" for v in VARS for d in LEADS], qs, qe, cache, f"fc_{CACHE_TAG}"))
         print(f"  {y}: 완료", flush=True)
 
     o = pd.concat(obs, ignore_index=True)

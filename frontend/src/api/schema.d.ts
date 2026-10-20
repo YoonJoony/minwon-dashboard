@@ -164,6 +164,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/weather/strip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Weather Strip
+         * @description 7일 기상 예보 띠: 기준일 포함 8일의 날씨 아이콘·기온·강수, 특보 수준(예보 판정), 기준일까지 발표된 NWS 특보.
+         */
+        get: operations["weather_strip_api_weather_strip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/weather/day": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Weather Day
+         * @description 예보 띠에서 고른 날: 그날 예보와, 같은 기상 이슈의 과거 7년 실제 민원 접수·처리 (특보 종류별 탭).
+         */
+        get: operations["weather_day_api_weather_day_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/evidence": {
         parameters: {
             query?: never;
@@ -525,6 +565,60 @@ export interface components {
             /** People */
             people: number;
         };
+        /** PastEvent */
+        PastEvent: {
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Level */
+            level: number;
+            /** Level Label */
+            level_label: string;
+            /** Win Start */
+            win_start: string;
+            /** Win End */
+            win_end: string;
+            /** Days */
+            days: number;
+            /** Nws */
+            nws: string[];
+            /** Surge */
+            surge: boolean;
+            /** Issues */
+            issues: components["schemas"]["PastIssue"][];
+        };
+        /** PastIssue */
+        PastIssue: {
+            /** Issue */
+            issue: string;
+            /** Base */
+            base: number;
+            /** Received */
+            received: number;
+            /** Excess */
+            excess: number;
+            /** Processed */
+            processed: number;
+            /** Open End */
+            open_end: number;
+            /** Open 7 */
+            open_7: number | null;
+            /** Peak */
+            peak: number;
+            /** Surge */
+            surge: boolean;
+        };
+        /** PastYear */
+        PastYear: {
+            /** Year */
+            year: number;
+            /** Compare Date */
+            compare_date: string;
+            /** Count */
+            count: number;
+            event: components["schemas"]["PastEvent"] | null;
+        };
         /** Period */
         Period: {
             /** Asof */
@@ -712,6 +806,90 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WeatherAlert */
+        WeatherAlert: {
+            /** Kind */
+            kind: string;
+            /** Kind Label */
+            kind_label: string;
+            /** Level */
+            level: number;
+            /** Label */
+            label: string;
+            /** Source */
+            source: string;
+            /** Issued */
+            issued?: string | null;
+        };
+        /** WeatherDay */
+        WeatherDay: {
+            /** Date */
+            date: string;
+            /** Offset */
+            offset: number;
+            /** Label */
+            label: string;
+            /** Lead */
+            lead: number;
+            /** Mode */
+            mode: string;
+            /** Icon */
+            icon: string | null;
+            /** Icon Label */
+            icon_label: string | null;
+            /** Tmax */
+            tmax: number | null;
+            /** Tmin */
+            tmin: number | null;
+            /** Prcp */
+            prcp: number | null;
+            /** Snow */
+            snow: number | null;
+            /** Gust */
+            gust: number | null;
+            /** Alerts */
+            alerts: components["schemas"]["WeatherAlert"][];
+        };
+        /** WeatherDayOut */
+        WeatherDayOut: {
+            /** Asof */
+            asof: string;
+            day: components["schemas"]["WeatherDay"];
+            /** Tabs */
+            tabs: components["schemas"]["WeatherHistory"][];
+            /** Note */
+            note: string;
+        };
+        /** WeatherHistory */
+        WeatherHistory: {
+            /** Kind */
+            kind: string;
+            /** Kind Label */
+            kind_label: string;
+            /** Has Alert */
+            has_alert: boolean;
+            /** Issues */
+            issues: string[];
+            /** Window Rule */
+            window_rule: string;
+            /** Basis */
+            basis: string;
+            /** Total Events */
+            total_events: number;
+            /** Surged Events */
+            surged_events: number;
+            /** Years */
+            years: components["schemas"]["PastYear"][];
+        };
+        /** WeatherStripOut */
+        WeatherStripOut: {
+            /** Asof */
+            asof: string;
+            /** Days */
+            days: components["schemas"]["WeatherDay"][];
+            /** Note */
+            note: string;
         };
     };
     responses: never;
@@ -976,6 +1154,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RiskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    weather_strip_api_weather_strip_get: {
+        parameters: {
+            query: {
+                /** @description 기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나 */
+                asof: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeatherStripOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    weather_day_api_weather_day_get: {
+        parameters: {
+            query: {
+                /** @description 기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나 */
+                asof: string;
+                /** @description 예보 띠에서 고른 날짜 (기준일 ~ +7일) */
+                date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeatherDayOut"];
                 };
             };
             /** @description Validation Error */

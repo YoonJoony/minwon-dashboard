@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 PROCESSED = DATA / "processed"
 RAW_WEATHER = DATA / "raw" / "weather"
+RAW_NWS = DATA / "raw" / "nws"
 ARTIFACTS = DATA / "artifacts"
 
 # 기준일: 습도·적설 예보 기록(2024-01-19~)이 1~7일 전 발표분까지 모두 갖춰지는 첫 월요일부터 데이터 마지막 날까지
@@ -40,7 +41,7 @@ WIDEN_DEFAULT = 2.6
 PER_PERSON_DEFAULT = 10        # 시연용 가정값: 1인당 하루 처리 건수
 
 # 예보 시점: 기준일 + k일의 날씨는 k일 전 발표 예보 (4일 → 5일 전, 6일 → 7일 전 발표분)
-LEAD = {0: 1, 1: 1, 2: 2, 3: 3, 4: 5, 5: 5, 6: 7}
+LEAD = {0: 1, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6}   # 기준일 + k일 → k일 전 발표 예보 (기준일 당일은 전날 발표)
 
 # 특보 → 관련 이슈 → 부서, 영향받는 날 (특보일 기준 며칠 뒤)
 LINKS = [("heat", "폭염·소화전", "DEP", (0, 1)), ("heat", "수돗물", "DEP", (0, 1)),
@@ -68,3 +69,25 @@ SURGE_RATIO, SURGE_MIN = 1.5, 30
 POTHOLE_FLAG_MULT = 1.5        # 겨울 적설 → 봄 도로 파손 배수가 이 이상이면 교통국 표시
 
 RISK_TOP_K = 40                # 기준일·부서마다 저장할 지연 위험 민원 수
+
+
+# ------------------------------------------------------------------ 7일 기상 예보 띠 · 과거 7년 모달 (docs/기상예보_기능_검증.md)
+STRIP_DAYS = 8                 # 기준일 포함 8칸
+STRIP_FORECAST_DAYS = 4        # 앞 4칸(오늘 ~ +3일)은 "예보", 뒤 4칸은 "참고"(가능성)
+WEATHER_LABEL = {"heat": "폭염", "snow": "대설", "wind": "강풍", "rain": "호우"}
+WEATHER_ISSUES = {k: [i for kind, i, _, _ in LINKS if kind == k] for k in WEATHER_LABEL}
+# 영향 기간 = [사건 첫날 + a일, 마지막 날 + b일]: 10년치 급증 사건에서 민원이 늘기 시작한 날·마지막으로 늘어난 날의 중앙값
+# (analysis/verify_weather_events.py). 호우는 실제 발표된 NWS 홍수 특보로 사건을 만든 결과.
+WEATHER_WINDOW = {"heat": (-1, 2), "snow": (0, 5), "wind": (0, 2), "rain": (0, 1)}
+HISTORY_YEARS = 7
+HISTORY_SEASON_DAYS = 120      # 해마다 "같은 시기" = 그 해 같은 날짜 앞뒤 120일 안에서 가장 가까운 사건
+# 실제 발표된 NWS 특보 (VTEC 종류, 단계) → (기상 종류, 단계: 0 예비특보 · 1 주의보 · 2 경보, 화면 이름)
+NWS_ALERTS = {
+    ("HT", "Y"): ("heat", 1, "폭염 주의보"), ("EH", "W"): ("heat", 2, "폭염 경보"), ("XH", "W"): ("heat", 2, "극한 폭염 경보"),
+    ("EH", "A"): ("heat", 0, "폭염 예비특보"), ("XH", "A"): ("heat", 0, "극한 폭염 예비특보"),
+    ("WI", "Y"): ("wind", 1, "강풍 주의보"), ("HW", "W"): ("wind", 2, "강풍 경보"), ("HW", "A"): ("wind", 0, "강풍 예비특보"),
+    ("WW", "Y"): ("snow", 1, "겨울 날씨 주의보"), ("WS", "W"): ("snow", 2, "겨울 폭풍 경보"), ("BZ", "W"): ("snow", 2, "눈보라 경보"),
+    ("WS", "A"): ("snow", 0, "겨울 폭풍 예비특보"), ("BZ", "A"): ("snow", 0, "눈보라 예비특보"),
+    ("FA", "Y"): ("rain", 1, "홍수 주의보"), ("FF", "W"): ("rain", 2, "돌발 홍수 경보"), ("FF", "A"): ("rain", 0, "돌발 홍수 예비특보"),
+    ("FA", "A"): ("rain", 0, "홍수 예비특보"),
+}

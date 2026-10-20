@@ -20,7 +20,8 @@ from engine import forecast_long as fl
 from engine import forecast_short as fs
 from engine import issues as isu
 from engine import risk as rk
-from engine.config import AGENCIES, ARTIFACTS, ASOF_START, LATEST, MAX_DAYS, ROOT
+from engine import weather as wx
+from engine.config import AGENCIES, ARTIFACTS, ASOF_START, LATEST, MAX_DAYS, ROOT, STRIP_DAYS
 from engine.content import EVIDENCE, SCENARIOS
 from engine.dashboard import AsofData, matrix
 from engine.data import complaints, daily_counts, daily_issues, holidays, weather_daily
@@ -138,6 +139,16 @@ def main(argv=None) -> int:
         if (i + 1) % 10 == 0 or i == len(asofs) - 1:
             log(f"  {i + 1}/{len(asofs)} 기준일 완료 ({asof:%Y-%m-%d})")
 
+    # ---------------- 7일 기상 예보 띠 · 과거 7년 모달 (기준일과 상관없이 한 번 계산, 기준일별 선택은 API)
+    nws = wx.nws_alerts()
+    weather = {
+        "forecast_days": wx.forecast_days(asofs[0], asofs[-1] + D(days=STRIP_DAYS - 1)),
+        "nws_alerts": nws,
+        "weather_events": wx.history_events(obs_lv, nws, df, data_end),
+    }
+    log(f"기상 예보 띠 {len(weather['forecast_days']):,}행, NWS 특보 {len(nws):,}건, "
+        f"과거 사건 {weather['weather_events'].groupby('kind').event.nunique().to_dict()}")
+
     # ---------------- 저장
     out = {
         "forecast_daily": pd.DataFrame(fd_rows, columns=["asof", "agency", "date", "source", "pred"]),
@@ -151,6 +162,7 @@ def main(argv=None) -> int:
         "risk_counts": pd.concat(rc_rows, ignore_index=True),
         "actual_daily": cnt.stack().rename("count").reset_index().rename(columns={"level_1": "agency"}),
         "issue_daily": iss.stack().rename("count").reset_index().rename(columns={"level_1": "issue"}),
+        **weather,
     }
     for name, t in out.items():
         t.to_parquet(ARTIFACTS / f"{name}.parquet", index=False)

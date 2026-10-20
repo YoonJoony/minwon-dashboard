@@ -14,16 +14,24 @@ from engine.config import (
     AGENCIES,
     AGENCY_INFO,
     ALERT_INFO,
+    HISTORY_SEASON_DAYS,
+    HISTORY_YEARS,
     ISSUE_INFO,
     LINKS,
     MAX_DAYS,
     PER_PERSON_DEFAULT,
+    STRIP_DAYS,
+    STRIP_FORECAST_DAYS,
     SUPPORT_X,
+    WEATHER_ISSUES,
+    WEATHER_LABEL,
+    WEATHER_WINDOW,
     X_TH,
     Y_TH,
 )
 from engine.content import COMPLAINT_KO
 from engine.dashboard import QUADRANTS, AsofData, matrix, period_forecast, staffing
+from engine.weather import ICON_LABEL
 
 D = pd.Timedelta
 ALERT_ICON = {"heat": "flame", "snow": "snowflake", "wind": "wind", "rain": "cloud-rain"}
@@ -79,6 +87,13 @@ class Store:
         self.cnt = rd("actual_daily").pivot(index="date", columns="agency", values="count")[AGENCIES]
         self.iss = rd("issue_daily").pivot(index="date", columns="issue", values="count")
         self._cache: dict[pd.Timestamp, AsofData] = {}
+        # 7일 기상 예보 띠 · 과거 7년 모달 (예전 사전 계산 결과에는 없을 수 있음)
+        opt = lambda n: rd(n) if (path / f"{n}.parquet").exists() else pd.DataFrame()
+        self._fdays = opt("forecast_days")
+        if len(self._fdays):
+            self._fdays = self._fdays.set_index(["date", "lead"]).sort_index()
+        self._nws = opt("nws_alerts")
+        self._wev = opt("weather_events")
 
     # ------------------------------------------------------------------ 공통
     def period(self, asof: str, start: str | None, end: str | None):
@@ -403,6 +418,91 @@ class Store:
         counts = [{"agency": r.agency, "open": int(r.open), "over_threshold": int(r.over_threshold), "high_risk": int(r.high_risk)}
                   for r in rc.itertuples()]
         return {"asof": _d(a), "agency": agency, "counts": counts, "items": out, "note": note}
+
+    # ------------------------------------------------------------------ 7일 기상 예보 띠 · 과거 7년 모달
+    def _strip_day(self, a: pd.Timestamp, k: int) -> dict:
+        """기준일 + k일 칸. 오늘은 전날 발표, +k일은 기준일에 발표된 k일 전 예보. NWS 특보는 기준일까지 발표된 것만."""
+        d = a + D(days=k)
+        lead = max(k, 1)
+        r = self._fdays.loc[(d, lead)] if len(self._fdays) and (d, lead) in self._fdays.index else None
+        alerts = []
+        if r is not None:
+            for kind in ("heat", "snow", "wind"):              # 호우는 예보 판정 대신 실제 NWS 특보만 (검증 문서 2-3)
+                lv = int(r[f"{kind}_level"]) if pd.notna(r[f"{kind}_level"]) else 0
+                if lv >= 1:
+                    alerts.append({"kind": kind, "kind_label": WEATHER_LABEL[kind], "level": lv, "source": "예보",
+                                   "label": f"{WEATHER_LABEL[kind]}{'경보' if lv == 2 else '주의보'} 수준"})
+        if len(self._nws):
+            n = self._nws
+            hit = n[(n.issued < a + D(days=1)) & (n.start < d + D(days=1)) & (n.end > d)]
+            for x in hit.sort_values("level", ascending=False).drop_duplicates("name").itertuples():
+                alerts.append({"kind": x.kind, "kind_label": WEATHER_LABEL[x.kind], "level": int(x.level), "label": x.name,
+                               "source": "NWS", "issued": f"{x.issued.month}/{x.issued.day} {x.issued:%H:%M}"})
+        icon = r["icon"] if r is not None and isinstance(r["icon"], str) else None
+        return {"date": _d(d), "offset": k, "label": "오늘" if k == 0 else WEEKDAY[d.dayofweek], "lead": lead,
+                "mode": "예보" if k < STRIP_FORECAST_DAYS else "참고", "icon": icon, "icon_label": ICON_LABEL.get(icon),
+                **{c: (_f(r[c]) if r is not None else None) for c in ("tmax", "tmin", "prcp", "snow", "gust")},
+                "alerts": alerts}
+
+    def weather_strip(self, asof: str) -> dict:
+        a, _, _ = self.period(asof, None, None)
+        return {"asof": _d(a), "days": [self._strip_day(a, k) for k in range(STRIP_DAYS)],
+                "note": (f"오늘 칸은 전날, +k일 칸은 기준일에 발표된 k일 전 예보입니다(Open-Meteo 예보 보관 기록). "
+                         f"앞 {STRIP_FORECAST_DAYS}칸은 예보, 뒤 칸은 참고(가능성). 특보 수준은 예보 값에 미국 기상청(NWS 뉴욕 지청) "
+                         "기준을 대입한 판정이고, 'NWS'는 기준일까지 실제 발표된 특보입니다.")}
+
+    def _history(self, a: pd.Timestamp, d: pd.Timestamp, kind: str, has_alert: bool) -> dict:
+        """같은 종류 과거 사건: 고른 날짜의 해 전 7년, 해마다 같은 날짜 앞뒤 120일 안에서 가장 가까운 사건. 기준일 전에 끝난 사건만."""
+        ev = self._wev[(self._wev.kind == kind) & (self._wev.win_end < a)] if len(self._wev) else pd.DataFrame()
+        main = WEATHER_ISSUES[kind][0]
+        heads = ev[ev.issue == main] if len(ev) else ev
+        nws_based = kind == "rain"
+        years = []
+        for y in range(d.year - 1, d.year - 1 - HISTORY_YEARS, -1):
+            c = pd.Timestamp(y, d.month, 28 if (d.month, d.day) == (2, 29) else d.day)
+            cand = heads[(heads.start - c).abs().dt.days <= HISTORY_SEASON_DAYS] if len(heads) else heads
+            event = None
+            if len(cand):
+                best = cand.loc[(cand.start - c).abs().idxmin()]
+                rows = ev[ev.event == best.event].set_index("issue").reindex(WEATHER_ISSUES[kind])
+                event = {
+                    "start": _d(best.start), "end": _d(best.end), "level": int(best.level),
+                    "level_label": ("경보" if best.level == 2 else "주의보") + ("" if nws_based else " 수준"),
+                    "win_start": _d(best.win_start), "win_end": _d(best.win_end), "days": int(best.days),
+                    "nws": [x for x in str(best.nws).split(" · ") if x and x != "nan"], "surge": bool(best.surge),
+                    "issues": [{"issue": iss, "base": float(r.base), "received": int(r.received), "excess": float(r.excess),
+                                "processed": int(r.processed), "open_end": int(r.received - r.processed),
+                                "open_7": int(r.received - r.processed_7) if best.win_end + D(days=7) < a else None,
+                                "peak": int(r.peak), "surge": bool(r.surge)} for iss, r in rows.iterrows()],
+                }
+            years.append({"year": y, "compare_date": _d(c), "count": len(cand), "event": event})
+        a_off, b_off = WEATHER_WINDOW[kind]
+        word = "특보" if nws_based else "특보 수준"
+        return {
+            "kind": kind, "kind_label": WEATHER_LABEL[kind], "has_alert": has_alert, "issues": WEATHER_ISSUES[kind],
+            "window_rule": f"영향 기간 = {word} 첫날{' 하루 전' if a_off < 0 else ''} ~ 마지막 날 {b_off}일 뒤",
+            "basis": ("실제 발표된 NWS 홍수 주의보·돌발 홍수 경보가 걸린 날" if nws_based
+                      else f"관측 날씨가 미국 기상청(NWS 뉴욕 지청) {WEATHER_LABEL[kind]} 특보 기준에 든 날"),
+            "total_events": len(heads), "surged_events": int(heads.surge.sum()) if len(heads) else 0,
+            "years": years,
+        }
+
+    def weather_day(self, asof: str, date: str) -> dict:
+        a, _, _ = self.period(asof, None, None)
+        try:
+            d = pd.Timestamp(date)
+        except ValueError as err:
+            raise HTTPException(400, f"날짜 형식이 올바르지 않습니다: {err}") from err
+        k = (d - a).days
+        if not 0 <= k < STRIP_DAYS:
+            raise HTTPException(400, f"날짜는 기준일부터 {STRIP_DAYS}일 안에서 고르세요.")
+        day = self._strip_day(a, k)
+        kinds = [x for x in WEATHER_LABEL if any(al["kind"] == x for al in day["alerts"])]
+        tabs = [self._history(a, d, kind, kind in kinds) for kind in (kinds or list(WEATHER_LABEL))]
+        return {"asof": _d(a), "day": day, "tabs": tabs,
+                "note": ("과거 7년은 고른 날짜의 해 전 7년이며, 해마다 같은 날짜 앞뒤 120일 안에서 가장 가까운 사건을 보여 줍니다. "
+                         "기준일 전에 끝난 사건만 씁니다. 평소 = 영향 기간 직전 28일 중 다른 영향 기간을 뺀 날의 하루 중앙값, "
+                         "늘어난 건수 = 접수 − 평소 × 영향 일수.")}
 
     def evidence(self) -> dict:
         return {"sections": self.manifest["evidence"], "sources": [

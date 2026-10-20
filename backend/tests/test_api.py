@@ -75,3 +75,49 @@ def test_staffing_people_follow_assumption():
     b = client.get("/api/staffing", params={**S1, "per_person_day": 20}).json()
     assert a["total_need"] == pytest.approx(b["total_need"])
     assert a["total_people"] == pytest.approx(b["total_people"] * 2)
+
+
+def test_weather_strip_uses_forecasts_known_at_asof():
+    w = client.get("/api/weather/strip", params={"asof": "2025-06-20"}).json()
+    days = w["days"]
+    assert len(days) == 8 and days[0]["label"] == "오늘" and days[0]["lead"] == 1
+    assert [d["lead"] for d in days[1:]] == [1, 2, 3, 4, 5, 6, 7]
+    assert [d["mode"] for d in days] == ["예보"] * 4 + ["참고"] * 4
+    d22 = days[2]
+    labels = {(a["source"], a["label"]) for a in d22["alerts"]}
+    assert ("예보", "폭염경보 수준") in labels
+    assert any(src == "NWS" for src, _ in labels)          # 6/20 오후 발표된 극한 폭염 예비특보
+    for d in days:                                        # 기준일(6/20) 뒤에 발표된 NWS 특보는 없어야 함
+        for a in d["alerts"]:
+            if a["source"] == "NWS":
+                month, day = (int(x) for x in a["issued"].split()[0].split("/"))
+                assert (month, day) <= (6, 20)
+
+
+def test_weather_day_history_matches_verification_doc():
+    w = client.get("/api/weather/day", params={"asof": "2025-06-20", "date": "2025-06-22"}).json()
+    heat = w["tabs"][0]
+    assert heat["kind"] == "heat" and heat["has_alert"] and len(heat["years"]) == 7
+    y2024 = heat["years"][0]
+    assert y2024["year"] == 2024
+    e = y2024["event"]
+    hyd = e["issues"][0]
+    # docs/기상예보_기능_검증.md 6장 예시와 같은 값
+    assert (e["start"], e["win_start"], e["win_end"]) == ("2024-06-21", "2024-06-20", "2024-06-25")
+    assert (hyd["received"], round(hyd["excess"]), hyd["processed"], hyd["open_end"], hyd["open_7"]) == (1459, 1300, 1300, 159, 12)
+
+
+def test_weather_day_rejects_out_of_strip_and_shows_all_tabs_without_alerts():
+    r = client.get("/api/weather/day", params={"asof": "2026-10-12", "date": "2026-10-25"})
+    assert r.status_code == 400 and "8일" in r.json()["detail"]
+    w = client.get("/api/weather/day", params={"asof": "2026-10-12", "date": "2026-10-14"}).json()
+    assert [t["kind"] for t in w["tabs"]] == ["heat", "snow", "wind", "rain"]
+    assert not any(t["has_alert"] for t in w["tabs"])
+
+
+def test_weather_history_uses_only_events_before_asof():
+    w = client.get("/api/weather/day", params={"asof": "2024-02-05", "date": "2024-02-07"}).json()
+    for t in w["tabs"]:
+        for y in t["years"]:
+            if y["event"]:
+                assert y["event"]["win_end"] < "2024-02-05"
