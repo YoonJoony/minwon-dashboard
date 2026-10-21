@@ -10,7 +10,7 @@ test.skip(missing.length > 0, `준비물이 없어 시연 화면 점검을 건�
 
 /** 시연 순서. 화면의 순서(src/state/dashboard.tsx의 DEMO_ORDER)와 같아야 합니다. */
 const DEMO_ORDER = ['S4', 'S1', 'S2', 'S3', 'S5']
-const PANELS = ['예상 접수 추이', '예상 이슈', '부서 위험 매트릭스', '인력 지원 권고', '부서별 현황', '지연 위험 민원']
+const PANELS = ['예상 접수 추이', '예상 이슈', '부서 위험 매트릭스', '인력 지원 권고', '부서별 현황']
 /** ECharts를 붙이는 영역의 이름 (role="img") */
 const CHARTS = ['예상 접수 추이 막대 차트', '부서 위험 매트릭스 산점도']
 

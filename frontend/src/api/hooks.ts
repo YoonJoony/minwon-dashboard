@@ -64,15 +64,6 @@ export function useStaffing(p: Period, perPersonDay: number) {
   })
 }
 
-export function useRisk(asof: string, agency: string | null, limit: number) {
-  return useQuery({
-    queryKey: ['risk', asof, agency, limit],
-    queryFn: async () =>
-      unwrap(await api.GET('/api/risk-list', { params: { query: { asof, agency: agency ?? undefined, limit } } })),
-    ...keep,
-  })
-}
-
 export function useEvidence() {
   return useQuery({
     queryKey: ['evidence'],
