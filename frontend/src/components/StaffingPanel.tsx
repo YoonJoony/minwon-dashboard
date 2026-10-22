@@ -22,7 +22,7 @@ export function StaffingPanel({ className }: { className?: string }) {
   return (
     <Panel
       title="인력 지원 권고"
-      subtitle="접수가 늘어난 부서와, 접수가 줄어 여유가 생기는 '지원 가능' 부서를 짝지어 보여 줍니다"
+      subtitle="접수가 늘거나 줄어 바쁜 부서와 여유가 생기는 '지원 가능' 부서를 짝지어 보여 줍니다"
       evidenceKey="staffing"
       className={className}
       actions={
@@ -159,7 +159,7 @@ function NeedCard({ data, index }: { data: StaffingOut; index: number }) {
 function NoNeed({ data }: { data: StaffingOut }) {
   const { agencyName } = useDash()
   return (
-    <article className="mt-4 rounded-2xl border border-line p-5">
+    <article className="mb-4 rounded-2xl border border-line p-5">
       <div className="flex items-center gap-3">
         <span className="flex size-11 items-center justify-center rounded-xl bg-[#e5f5ed] text-[#17955a]">
           <CircleCheck size={22} />

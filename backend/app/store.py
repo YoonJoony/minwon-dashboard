@@ -186,8 +186,7 @@ class Store:
             t = we + D(days=1)
         return {"period": self.period_out(a, s, e, src), "agency": agency, "granularity": gran, "total": tot,
                 "by_agency": rows, "series": series,
-                "range_note": "막대의 빗금은 80% 예측 범위 상한입니다 (같은 방식 과거 예측 오차의 90% 지점, 기간 전체 기준). "
-                              "기상 특보가 걸린 부서는 범위를 넓혀 표시합니다."}
+                "range_note": "막대의 빗금은 80% 예측 범위 상한입니다."}
 
     @staticmethod
     def _label(t: pd.Timestamp, gran: str) -> str:

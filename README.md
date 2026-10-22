@@ -9,6 +9,7 @@
 - 시연 리허설 검증: [docs/리허설_검증.md](docs/리허설_검증.md)
 - 개발 설계: [docs/개발설계.md](docs/개발설계.md)
 - 7일 기상 예보 띠·과거 7년 모달 검증: [docs/기상예보_기능_검증.md](docs/기상예보_기능_검증.md)
+- 파이썬 실습 노트(계산을 직접 짜 보고 엔진 결과와 대조): [study/2차_파이썬_실습.ipynb](study/2차_파이썬_실습.ipynb) — `uv run --group study jupyter lab study/2차_파이썬_실습.ipynb`, 노트 다시 만들기는 `uv run --group study python study/make_notebook.py study/2차_파이썬_실습.ipynb`
 - 데이터 설명: [data/NYC311_컬럼설명.md](data/NYC311_컬럼설명.md), [data/processed/README.md](data/processed/README.md)
 
 ## 구성
