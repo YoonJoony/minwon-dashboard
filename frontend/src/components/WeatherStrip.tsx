@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import type { WeatherDay } from '../api/client'
 import { useWeatherStrip } from '../api/hooks'
@@ -13,14 +14,15 @@ const round = (v: number | null | undefined) => (v == null ? '–' : String(Math
 const MAX_BADGES = 2
 
 function dayTitle(d: WeatherDay) {
+  const past = d.offset < 0
   const lines = [
     `${fmtMDW(d.date)} · ${d.icon_label ?? '정보 없음'} ${round(d.tmax)}/${round(d.tmin)}°C`,
-    `${d.offset === 0 ? '전날' : '기준일'} 발표 예보 (${d.lead}일 전)`,
+    past ? '실제 관측 (Open-Meteo 관측 기록)' : `${d.offset === 0 ? '전날' : '기준일'} 발표 예보 (${d.lead}일 전)`,
   ]
   if (d.prcp != null && d.prcp >= 1) lines.push(`강수 ${Math.round(d.prcp)}mm`)
   if (d.snow != null && d.snow >= 1) lines.push(`적설 ${Math.round(d.snow)}cm`)
-  for (const a of d.alerts) lines.push(a.source === 'NWS' ? `${a.label} — NWS 발표 ${a.issued ?? ''}` : `${a.label} (예보 판정)`)
-  lines.push('누르면 이날 예보를 자세히 봅니다')
+  for (const a of d.alerts) lines.push(a.source === 'NWS' ? `${a.label} — NWS 발표 ${a.issued ?? ''}` : `${a.label} (${a.source} 판정)`)
+  lines.push(`누르면 이날 ${past ? '날씨' : '예보'}를 자세히 봅니다`)
   return lines.join('\n')
 }
 
@@ -38,10 +40,11 @@ function DayCell({ d, selected, onClick }: { d: WeatherDay; selected: boolean; o
       type="button"
       onClick={onClick}
       title={dayTitle(d)}
-      aria-label={`${fmtMDW(d.date)} 예보 ${d.icon_label ?? ''}${kinds.length ? ', 특보 ' + kinds.map((k) => k.labels[0]).join(', ') : ''}`}
+      aria-label={`${fmtMDW(d.date)} ${d.offset < 0 ? '관측' : '예보'} ${d.icon_label ?? ''}${kinds.length ? ', 특보 ' + kinds.map((k) => k.labels[0]).join(', ') : ''}`}
       className={clsx(
         'flex min-w-0 flex-col items-center gap-1 rounded-xl px-0.5 py-1.5 transition lg:px-1',
         selected ? 'bg-brand-tint ring-1 ring-brand/40' : 'hover:bg-white',
+        d.offset < 0 && !selected && 'opacity-60 hover:opacity-100', // 지난 7일(관측)은 흐리게, 올리면 또렷하게
       )}
     >
       <span className="flex flex-col items-center whitespace-nowrap leading-tight lg:flex-row lg:items-baseline lg:gap-1">
@@ -86,19 +89,53 @@ function DayCell({ d, selected, onClick }: { d: WeatherDay; selected: boolean; o
   )
 }
 
-/** 탭 줄 가운데 7일 기상 예보 띠 (기준일 포함 8칸). 칸을 누르면 그날 예보 모달 */
+/** 띠 가장자리에 반쯤 걸친 넘김 버튼 (띠 크기는 그대로) */
+function PageButton({ toPast, onClick }: { toPast: boolean; onClick: () => void }) {
+  const Icon = toPast ? ChevronLeft : ChevronRight
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={toPast ? '지난 7일 관측 보기' : '다음 7일 예보 보기'}
+      title={toPast ? '지난 7일 실제 관측 날씨 보기' : '오늘부터 7일 예보로 돌아가기'}
+      className={clsx(
+        'absolute top-1/2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-white text-mute',
+        'shadow-[0_2px_6px_-2px_rgba(22,22,29,0.25)] transition hover:border-line-strong hover:text-ink lg:size-7',
+        toPast ? '-left-4 lg:-left-3.5' : '-right-4 lg:-right-3.5',
+      )}
+    >
+      <Icon className="size-4" strokeWidth={2.2} aria-hidden="true" />
+    </button>
+  )
+}
+
+/**
+ * 탭 줄 가운데 7일 기상 예보 띠 (기준일 포함 8칸). 칸을 누르면 그날 날씨 모달.
+ * 왼쪽 화살표로 넘기면 지난 7일 실제 관측 + 오늘 (8칸 그대로, 오늘은 맨 오른쪽)
+ */
 export function WeatherStrip({ className }: { className?: string }) {
   const { state } = useDash()
   const { data, error } = useWeatherStrip(state.asof)
+  const [past, setPast] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
   if (error) return null
-  const sel = data?.days.find((d) => d.date === open)
+  const canPast = (data?.past.length ?? 0) > 0 // 예전 사전 계산 결과에는 관측이 없을 수 있음
+  const showPast = past && canPast
+  const days = !data ? [] : showPast ? [...data.past, data.days[0]] : data.days
+  const sel = days.find((d) => d.date === open)
   return (
-    <div className={clsx('min-w-0', className)} role="group" aria-label="7일 기상 예보">
-      <div className="grid w-full max-w-[640px] grid-cols-8 gap-0.5 rounded-2xl border border-line bg-[#fbfbfd] p-1 lg:max-w-[880px]">
-        {!data
-          ? Array.from({ length: 8 }, (_, i) => <div key={i} className="skeleton h-[118px] rounded-xl sm:h-[126px] lg:h-[82px]" />)
-          : data.days.map((d) => <DayCell key={d.date} d={d} selected={open === d.date} onClick={() => setOpen(d.date)} />)}
+    <div className={clsx('min-w-0', className)}>
+      <div className="relative w-full max-w-[640px] lg:max-w-[880px]">
+        <div
+          role="group"
+          aria-label={showPast ? '지난 7일 관측 날씨' : '7일 기상 예보'}
+          className="grid w-full grid-cols-8 gap-0.5 rounded-2xl border border-line bg-[#fbfbfd] p-1"
+        >
+          {!data
+            ? Array.from({ length: 8 }, (_, i) => <div key={i} className="skeleton h-[118px] rounded-xl sm:h-[126px] lg:h-[82px]" />)
+            : days.map((d) => <DayCell key={d.date} d={d} selected={open === d.date} onClick={() => setOpen(d.date)} />)}
+        </div>
+        {canPast && <PageButton toPast={!showPast} onClick={() => setPast(!showPast)} />}
       </div>
       <WeatherModal asof={state.asof} date={open} hasAlert={(sel?.alerts.length ?? 0) > 0} onClose={() => setOpen(null)} />
     </div>

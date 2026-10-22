@@ -87,6 +87,9 @@ export function AsofPicker() {
                 desc: '아래 기준일 목록에서 고른 날',
               }}
               onChange={(v) => {
+                // 최신·시나리오를 고르면 창을 닫음 (목록에서 날짜를 고르거나 기간을 고칠 때는 열어 둠)
+                setOpen(false)
+                if (v === value) return
                 const sc = choices.find((x) => x.id === v)
                 if (sc) applyScenario(sc)
                 else setAsof(meta.latest)
@@ -274,7 +277,7 @@ function ChoiceSelect({
   const pick = (i: number) => {
     setOpen(false)
     btn.current?.focus()
-    if (choices[i].value !== value) onChange(choices[i].value)
+    onChange(choices[i].value) // 이미 고른 항목을 다시 골라도 부름 (바깥 창 닫기 등)
   }
   const onListKey = (e: KeyboardEvent) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {

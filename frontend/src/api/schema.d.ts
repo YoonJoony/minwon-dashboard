@@ -174,6 +174,7 @@ export interface paths {
         /**
          * Weather Strip
          * @description 7일 기상 예보 띠: 기준일 포함 8일의 날씨 아이콘·기온·강수, 특보 수준(예보 판정), 기준일까지 발표된 NWS 특보.
+         *     past는 지난 7일 실제 관측(특보 수준은 관측 판정).
          */
         get: operations["weather_strip_api_weather_strip_get"];
         put?: never;
@@ -193,7 +194,7 @@ export interface paths {
         };
         /**
          * Weather Day
-         * @description 예보 띠에서 고른 날: 그날 예보와, 같은 기상 이슈의 과거 7년 실제 민원 접수·처리 (특보 종류별 탭).
+         * @description 예보 띠에서 고른 날: 그날 예보(지난 7일은 관측)와, 같은 기상 이슈의 과거 7년 실제 민원 접수·처리 (특보 종류별 탭).
          */
         get: operations["weather_day_api_weather_day_get"];
         put?: never;
@@ -435,6 +436,10 @@ export interface components {
             need_count: number;
             /** Support Count */
             support_count: number;
+            /** Support Names */
+            support_names: string[];
+            /** Support Slack */
+            support_slack: number;
             /** Coverage */
             coverage: number | null;
         };
@@ -886,6 +891,8 @@ export interface components {
             asof: string;
             /** Days */
             days: components["schemas"]["WeatherDay"][];
+            /** Past */
+            past: components["schemas"]["WeatherDay"][];
             /** Note */
             note: string;
         };
@@ -1202,7 +1209,7 @@ export interface operations {
             query: {
                 /** @description 기준일 (YYYY-MM-DD). /api/meta의 asofs 중 하나 */
                 asof: string;
-                /** @description 예보 띠에서 고른 날짜 (기준일 ~ +7일) */
+                /** @description 예보 띠에서 고른 날짜 (기준일 −7일 ~ +7일) */
                 date: string;
             };
             header?: never;

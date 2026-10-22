@@ -39,7 +39,7 @@ export function Panel({ title, subtitle, actions, evidenceKey, children, classNa
     <section
       aria-label={title}
       className={clsx(
-        'relative min-w-0 px-6 py-7 transition-colors duration-300 lg:px-9 lg:py-8',
+        'relative min-w-0 px-5 py-7 transition-colors duration-300 lg:px-10 lg:py-8', // 좌우 여백은 위 제목·핵심 지표와 같게
         focus && 'bg-brand-tint/45',
         className,
       )}

@@ -95,13 +95,14 @@ def risk_list(store: StoreDep, asof: AsOf, agency: AgencyQ = None,
 
 @app.get("/api/weather/strip", response_model=schemas.WeatherStripOut)
 def weather_strip(store: StoreDep, asof: AsOf):
-    """7일 기상 예보 띠: 기준일 포함 8일의 날씨 아이콘·기온·강수, 특보 수준(예보 판정), 기준일까지 발표된 NWS 특보."""
+    """7일 기상 예보 띠: 기준일 포함 8일의 날씨 아이콘·기온·강수, 특보 수준(예보 판정), 기준일까지 발표된 NWS 특보.
+    past는 지난 7일 실제 관측(특보 수준은 관측 판정)."""
     return store.weather_strip(asof)
 
 
 @app.get("/api/weather/day", response_model=schemas.WeatherDayOut)
-def weather_day(store: StoreDep, asof: AsOf, date: Annotated[str, Query(description="예보 띠에서 고른 날짜 (기준일 ~ +7일)")]):
-    """예보 띠에서 고른 날: 그날 예보와, 같은 기상 이슈의 과거 7년 실제 민원 접수·처리 (특보 종류별 탭)."""
+def weather_day(store: StoreDep, asof: AsOf, date: Annotated[str, Query(description="예보 띠에서 고른 날짜 (기준일 −7일 ~ +7일)")]):
+    """예보 띠에서 고른 날: 그날 예보(지난 7일은 관측)와, 같은 기상 이슈의 과거 7년 실제 민원 접수·처리 (특보 종류별 탭)."""
     return store.weather_day(asof, date)
 
 

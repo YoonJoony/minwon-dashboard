@@ -74,6 +74,7 @@ RISK_TOP_K = 40                # 기준일·부서마다 저장할 지연 위험
 # ------------------------------------------------------------------ 7일 기상 예보 띠 · 과거 7년 모달 (docs/기상예보_기능_검증.md)
 STRIP_DAYS = 8                 # 기준일 포함 8칸
 STRIP_FORECAST_DAYS = 4        # 앞 4칸(오늘 ~ +3일)은 "예보", 뒤 4칸은 "참고"(가능성)
+STRIP_PAST_DAYS = 7            # 띠를 왼쪽으로 넘기면 보이는 지난 7일 (실제 관측)
 WEATHER_LABEL = {"heat": "폭염", "snow": "대설", "wind": "강풍", "rain": "호우"}
 WEATHER_ISSUES = {k: [i for kind, i, _, _ in LINKS if kind == k] for k in WEATHER_LABEL}
 # 영향 기간 = [사건 첫날 + a일, 마지막 날 + b일]: 10년치 급증 사건에서 민원이 늘기 시작한 날·마지막으로 늘어난 날의 중앙값

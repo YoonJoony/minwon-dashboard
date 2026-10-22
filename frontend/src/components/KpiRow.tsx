@@ -11,7 +11,10 @@ const CHIP: Record<ChipTone, string> = {
   muted: 'bg-[#efeff4] text-[#55556a]',
 }
 
-const cell = 'min-w-0 border-line px-5 py-6 lg:px-8 max-xl:border-b xl:border-l xl:first:border-l-0'
+// 6칸: 1280px 이상 한 줄(좁은 PC는 여백·숫자를 조금 줄임), 그보다 좁으면 3칸 × 2줄, 모바일 2칸 × 3줄
+// 줄 맨 앞 칸의 글자는 위 제목·아래 패널 제목과 같은 위치(모바일 20px, PC 40px)에서 시작
+const cell =
+  'min-w-0 border-line px-5 py-6 lg:px-8 xl:px-5 xl:first:pl-8 min-[1500px]:px-7 max-xl:border-b xl:border-l xl:first:border-l-0'
 
 export function KpiRow() {
   const { period, state, days } = useDash()
@@ -20,7 +23,7 @@ export function KpiRow() {
   return (
     <div className="mx-auto max-w-[1680px] px-0 lg:px-2">
       <div
-        className={clsx('grid grid-cols-2 transition-opacity md:grid-cols-3 xl:grid-cols-5', isFetching && data && 'opacity-70')}
+        className={clsx('grid grid-cols-2 transition-opacity md:grid-cols-3 xl:grid-cols-6', isFetching && data && 'opacity-70')}
         aria-busy={isFetching}
       >
         {error && !data ? (
@@ -28,7 +31,7 @@ export function KpiRow() {
             <ErrorState error={error} onRetry={() => refetch()} />
           </div>
         ) : !data ? (
-          Array.from({ length: 5 }, (_, i) => (
+          Array.from({ length: 6 }, (_, i) => (
             <div key={i} className={cell}>
               <Skeleton className="h-4 w-24" />
               <Skeleton className="mt-5 h-9 w-32" />
@@ -41,7 +44,7 @@ export function KpiRow() {
               <p className="text-[15px] font-medium text-ink/80">{k.label}</p>
               <p className="mt-3.5 flex items-baseline gap-1">
                 <span
-                  className="truncate text-[32px] font-bold tracking-[-0.025em] num lg:text-[34px]"
+                  className="truncate text-[32px] font-bold tracking-[-0.025em] num lg:text-[34px] xl:text-[30px] min-[1500px]:text-[34px]"
                   style={{ color: k.valueColor ?? '#16161d' }}
                 >
                   {k.value}
@@ -49,7 +52,7 @@ export function KpiRow() {
                 {k.unit && <span className="text-[22px] font-semibold text-faint">{k.unit}</span>}
               </p>
               <div className="mt-2.5 flex min-h-6 flex-wrap items-center gap-x-2.5 gap-y-1 text-[14px] text-mute">
-                {k.note && <span className="truncate">{k.note}</span>}
+                {k.note && <span className="truncate" title={k.title ?? k.note}>{k.note}</span>}
                 {k.trend !== undefined && <Trend value={k.trend} />}
                 {k.chip && <Chip className={CHIP[k.chip.tone]}>{k.chip.text}</Chip>}
               </div>

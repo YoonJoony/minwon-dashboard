@@ -3,6 +3,7 @@
 
 예보 띠
 - 칸: 기준일 포함 8일. 오늘 칸은 전날 발표(1일 전) 예보, +k일 칸은 기준일에 발표된 k일 전 예보
+- 지난 7일(띠를 왼쪽으로 넘김): 같은 하루 요약·특보 판정을 예보 대신 실제 관측(Open-Meteo 관측 기록)에 적용
 - 날씨 아이콘: 뇌우(강수 1mm 이상 + 날씨 코드 95~99) → 눈(적설 1cm 이상) → 비(강수 1mm 이상)
   → 흐림(낮 7~19시 평균 전운량 80% 이상) → 구름많음(40% 이상) → 맑음
 - 특보 수준: 폭염·강풍·대설은 예보 값에 NWS 기준을 대입해 판정, 호우는 실제 발표된 NWS 특보만
@@ -20,7 +21,7 @@ import pandas as pd
 
 from engine import alerts as al
 from engine.config import NWS_ALERTS, WEATHER_ISSUES, WEATHER_LABEL, WEATHER_WINDOW
-from engine.data import HOURLY_COLS, forecast_lead_sky, nws_alerts_raw
+from engine.data import HOURLY_COLS, forecast_lead_sky, hourly_obs, nws_alerts_raw
 
 D = pd.Timedelta
 NY = "America/New_York"
@@ -61,6 +62,16 @@ def forecast_days(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
         t = t[(t.index >= start) & (t.index <= end)].drop(columns=["valid_heat", "valid_wind", "valid_snow"])
         rows.append(t.assign(lead=lead))
     return pd.concat(rows).rename_axis("date").reset_index()
+
+
+def observed_days(obs_levels: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    """날짜별 실제 관측 하루 요약과 특보 수준 (예보 띠의 지난 7일). 예보 띠와 같은 정의를 관측값에 적용."""
+    h = hourly_obs().rename(columns={"weather_code": "code", "cloud_cover": "cloud"})
+    t = daily_summary(h).join(obs_levels[["heat", "wind", "snow"]].rename(
+        columns={"snow": "snow_level", "heat": "heat_level", "wind": "wind_level"}))
+    for k in ("heat", "wind", "snow"):                         # 관측값이 빠진 날은 특보 판정 안 함
+        t[f"{k}_level"] = t[f"{k}_level"].where(obs_levels[f"valid_{k}"].reindex(t.index).fillna(False).astype(bool), 0)
+    return t[(t.index >= start) & (t.index <= end)].rename_axis("date").reset_index()
 
 
 # ------------------------------------------------------------------ 실제 발표된 NWS 특보
