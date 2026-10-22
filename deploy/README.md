@@ -12,14 +12,24 @@
 무료(Always Free) ARM 서버(A1)는 오사카에 자리가 없어("Out of capacity") 체험 크레딧으로 AMD 서버를 썼습니다.
 Hugging Face 무료 계정은 Docker Space를 만들 수 없어(PRO 필요) 쓰지 않았습니다 (`hf_space_card.md`, `deploy.py --space`는 PRO일 때용).
 
-## 다시 배포 (코드를 커밋한 뒤, 프로젝트 루트에서)
+## 자동 배포 (main에 push할 때만)
+
+`.github/workflows/deploy.yml`: main 브랜치에 push되면 GitHub Actions가 **코드만** 서버에 올리고
+서버에서 이미지를 다시 만듭니다(화면 빌드 → 파이썬 환경 → 사전 계산 `engine.build`, 리허설 대조 실패 시 중단 → 컨테이너 교체).
+서버의 `data/`는 지우지도 덮어쓰지도 않고 그대로 씁니다. dev 등 다른 브랜치 push로는 배포되지 않습니다.
+
+- GitHub 비밀값 `ORACLE_SSH_KEY`: 자동 배포 전용 SSH 개인 키(로컬 `~/.ssh/minwon_actions`, 공개 키는 서버 `authorized_keys`에 등록됨)
+- 서버를 새로 만들면 워크플로의 `SERVER`·`KNOWN_HOST`(`ssh-keyscan -t ed25519 IP`)를 바꿉니다
+- 실행 기록: GitHub 저장소 → Actions → "시연 서버 배포"
+
+## 직접 배포 (데이터가 바뀌었을 때, 프로젝트 루트에서)
 
 ```bash
 uv run --no-project python deploy/deploy.py --server ubuntu@129.225.152.209
 ```
 
-커밋된 코드(`git archive HEAD`)와 계산에 필요한 데이터(약 75MB)를 서버에 올리고,
-서버에서 이미지를 다시 만듭니다: 화면 빌드 → 파이썬 환경 → 사전 계산(`engine.build`, 리허설 대조 실패 시 중단) → 컨테이너 교체.
+커밋된 코드(`git archive HEAD`)와 계산에 필요한 데이터(약 75MB)를 함께 서버에 올리고 위와 같이 다시 만듭니다.
+코드만 올리려면 `--code-only`를 붙입니다(자동 배포와 같음).
 
 ## 서버 처음 준비 (이미 한 일)
 

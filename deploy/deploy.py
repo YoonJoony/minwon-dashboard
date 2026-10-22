@@ -8,6 +8,8 @@
 실행 (프로젝트 루트에서):
     # SSH 서버 (Oracle Cloud 등, Docker 설치돼 있어야 함 — deploy/README.md)
     uv run --no-project python deploy/deploy.py --server ubuntu@129.225.152.209
+    # 코드만 (서버에 있는 data/는 그대로 씀). GitHub Actions 자동 배포가 이 방식 (.github/workflows/deploy.yml)
+    python deploy/deploy.py --server ubuntu@129.225.152.209 --code-only --key 키파일
     # Hugging Face Space (Docker Space는 PRO 구독 필요). 먼저 `uvx --from huggingface_hub hf auth login`
     uv run --no-project --with huggingface_hub python deploy/deploy.py --space 사용자명/minwon-dashboard
     # 묶기만
@@ -46,8 +48,8 @@ SKIP_PREFIX = ("frontend/e2e/", "frontend/e2e-screens/", "frontend/test-results/
 IMAGE, CONTAINER, REMOTE_DIR = "minwon-dashboard", "minwon", "minwon"
 
 
-def stage(dst: Path, space_card: bool = False) -> str:
-    """배포 폴더를 만들고 커밋 해시를 돌려줍니다."""
+def stage(dst: Path, space_card: bool = False, with_data: bool = True) -> str:
+    """배포 폴더를 만들고 커밋 해시를 돌려줍니다. with_data=False면 코드만 (데이터는 대상에 이미 있다고 봄)."""
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, check=True,
                             capture_output=True, text=True).stdout.strip()
     tar = subprocess.run(["git", "archive", "--format=tar", "HEAD", *CODE], cwd=ROOT, check=True,
@@ -55,10 +57,10 @@ def stage(dst: Path, space_card: bool = False) -> str:
     with tarfile.open(fileobj=io.BytesIO(tar)) as t:
         members = [m for m in t.getmembers() if not m.name.startswith(SKIP_PREFIX)]
         t.extractall(dst, members=members, filter="data")
-    missing = [p for p in DATA if not (ROOT / p).exists()]
+    missing = [p for p in DATA if with_data and not (ROOT / p).exists()]
     if missing:
         sys.exit("데이터 파일이 없습니다 (pipelines/ 수집·병합을 먼저 하세요):\n  " + "\n  ".join(missing))
-    for p in DATA:
+    for p in DATA if with_data else []:
         (dst / p).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / p, dst / p)
     shutil.copy2(HERE / "Dockerfile", dst / "Dockerfile")
@@ -69,12 +71,15 @@ def stage(dst: Path, space_card: bool = False) -> str:
     return commit
 
 
-def to_server(target: str, key: str) -> None:
-    """SSH 서버에 올리고 이미지를 다시 만든 뒤 컨테이너를 바꿔 띄웁니다 (80번 → 7860)."""
-    ssh = ["ssh", "-i", str(Path(key).expanduser())]
+def to_server(target: str, key: str, code_only: bool = False) -> None:
+    """SSH 서버에 올리고 이미지를 다시 만든 뒤 컨테이너를 바꿔 띄웁니다 (80번 → 7860).
+    code_only면 서버의 data/는 지우지도 덮어쓰지도 않고 그대로 씁니다."""
+    ssh = ["ssh", "-i", str(Path(key).expanduser()), "-o", "IdentitiesOnly=yes"]
+    keep = ["--exclude=/data/"] if code_only else []
     with tempfile.TemporaryDirectory() as tmp:
-        stage(Path(tmp))
-        subprocess.run(["rsync", "-az", "--delete", "-e", " ".join(ssh), f"{tmp}/", f"{target}:{REMOTE_DIR}/"], check=True)
+        stage(Path(tmp), with_data=not code_only)
+        subprocess.run(["rsync", "-az", "--delete", *keep, "-e", " ".join(ssh), f"{tmp}/", f"{target}:{REMOTE_DIR}/"],
+                       check=True)
     remote = (f"cd {REMOTE_DIR} && sudo docker build -t {IMAGE} . "
               f"&& (sudo docker rm -f {CONTAINER} >/dev/null 2>&1 || true) "
               f"&& sudo docker run -d --name {CONTAINER} --restart unless-stopped -p 80:7860 {IMAGE} "
@@ -103,13 +108,14 @@ def main(argv=None) -> int:
     g.add_argument("--space", help="Hugging Face Space 이름 (예: 사용자명/minwon-dashboard)")
     g.add_argument("--stage-only", type=Path, help="이 폴더에 묶기만 하고 올리지 않음")
     p.add_argument("--key", default="~/.ssh/oracle_minwon", help="--server용 SSH 개인 키")
+    p.add_argument("--code-only", action="store_true", help="--server: 코드만 올리고 서버의 data/는 그대로 씀")
     a = p.parse_args(argv)
 
     if a.stage_only:
         a.stage_only.mkdir(parents=True, exist_ok=True)
         stage(a.stage_only)
     elif a.server:
-        to_server(a.server, a.key)
+        to_server(a.server, a.key, a.code_only)
     else:
         to_space(a.space)
     return 0
