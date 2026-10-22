@@ -1,7 +1,7 @@
 import { addDays, addMonths, differenceInCalendarDays, format, isValid, parseISO, subDays } from 'date-fns'
 
-export type PresetKey = '7d' | '14d' | 'month' | 'quarter'
-export const PRESET_KEYS: PresetKey[] = ['7d', '14d', 'month', 'quarter']
+export type PresetKey = '7d' | 'month' | 'quarter'
+export const PRESET_KEYS: PresetKey[] = ['7d', 'month', 'quarter']
 
 /** 1~14일은 단기 모델, 그 뒤는 월별 방식 (engine.dashboard.period_forecast와 같은 규칙) */
 export const SHORT_DAYS = 14
@@ -12,8 +12,7 @@ const parse = (s: string) => parseISO(s)
 /** 빠른 선택 기간. 한 달·분기는 달력 기준(기준일 + 1개월/3개월 − 1일)이라 최대 92일을 넘지 않습니다. */
 export function presetRange(asof: string, key: PresetKey): { start: string; end: string } {
   const a = parse(asof)
-  const end =
-    key === '7d' ? addDays(a, 6) : key === '14d' ? addDays(a, 13) : subDays(addMonths(a, key === 'month' ? 1 : 3), 1)
+  const end = key === '7d' ? addDays(a, 6) : subDays(addMonths(a, key === 'month' ? 1 : 3), 1)
   return { start: asof, end: toISO(end) }
 }
 

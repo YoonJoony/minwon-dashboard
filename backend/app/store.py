@@ -135,7 +135,7 @@ class Store:
             "agencies": [{"code": c, **AGENCY_INFO[c]} for c in AGENCIES],
             "asofs": [_d(x) for x in self.asofs], "latest": _d(self.latest), "data_end": _d(self.data_end),
             "scenarios": self.manifest["scenarios"],
-            "presets": [{"key": "7d", "label": "다음 7일"}, {"key": "14d", "label": "다음 14일"},
+            "presets": [{"key": "7d", "label": "다음 7일"},
                         {"key": "month", "label": "다음 한 달"}, {"key": "quarter", "label": "다음 분기"}],
             "max_days": MAX_DAYS, "thresholds": {"x": X_TH, "y": Y_TH, "support_x": SUPPORT_X}, "per_person_default": PER_PERSON_DEFAULT,
             "built_at": self.manifest["built_at"], "data_note": DATA_NOTE,
