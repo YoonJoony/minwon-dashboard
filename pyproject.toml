@@ -26,6 +26,11 @@ dev = [
     "pytest>=8",
     "ruff>=0.6",
 ]
+study = [
+    "ipykernel>=7.4.0",
+    "jupyterlab>=4.6.4",
+    "nbclient>=0.11.0",
+]
 
 [tool.uv]
 package = false
