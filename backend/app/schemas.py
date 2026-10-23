@@ -245,6 +245,8 @@ class Kpis(BaseModel):
     need_people: float
     need_count: float
     support_count: int
+    support_names: list[str]   # 지원 가능 부서 이름 (여유 큰 순)
+    support_slack: float       # 지원 가능 부서 여유 합계 (평소 − 예상 접수, 건)
     coverage: float | None
 
 
@@ -307,16 +309,16 @@ class WeatherAlert(BaseModel):
     kind_label: str        # 폭염 / 대설 / 강풍 / 호우
     level: int             # 0 예비특보 · 1 주의보 · 2 경보
     label: str             # "폭염경보 수준"(예보 판정) 또는 "극한 폭염 경보"(NWS 발표)
-    source: str            # 예보 / NWS
+    source: str            # 예보 / 관측(지난 7일) / NWS
     issued: str | None = None   # NWS 발표 시각 (뉴욕 시각)
 
 
 class WeatherDay(BaseModel):
     date: str
-    offset: int            # 기준일부터 며칠 뒤 (0 = 기준일)
+    offset: int            # 기준일부터 며칠 뒤 (0 = 기준일, 음수 = 지난 7일)
     label: str             # 오늘 / 월 / 화 …
-    lead: int              # 며칠 전 발표된 예보인지
-    mode: str              # 예보(앞 4칸) / 참고(뒤 4칸, 가능성). 화면은 8칸을 같은 모양으로 표시
+    lead: int              # 며칠 전 발표된 예보인지 (관측은 0)
+    mode: str              # 예보(앞 4칸) / 참고(뒤 4칸, 가능성) / 관측(지난 7일). 화면은 모두 같은 모양으로 표시
     icon: str | None       # clear / partly / cloudy / rain / snow / thunder
     icon_label: str | None
     tmax: float | None     # °C
@@ -330,6 +332,7 @@ class WeatherDay(BaseModel):
 class WeatherStripOut(BaseModel):
     asof: str
     days: list[WeatherDay]
+    past: list[WeatherDay]       # 지난 7일 실제 관측 (오래된 날부터). 관측 사전 계산이 없으면 빈 목록
     note: str
 
 

@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { clampPeriod, daysBetween, detectPreset, isShortPeriod, presetRange } from './period'
 
 describe('빠른 선택 기간', () => {
-  it('7일·14일은 기준일 포함', () => {
+  it('7일은 기준일 포함', () => {
     expect(presetRange('2026-10-12', '7d')).toEqual({ start: '2026-10-12', end: '2026-10-18' })
-    expect(presetRange('2026-10-12', '14d')).toEqual({ start: '2026-10-12', end: '2026-10-25' })
+  })
+
+  it('14일 기간은 빠른 선택에서 빠져 직접 지정으로 본다', () => {
+    expect(detectPreset('2026-10-12', '2026-10-12', '2026-10-25')).toBe('custom')
   })
 
   it('한 달·분기는 달력 기준이라 시연 시나리오와 같다', () => {

@@ -59,6 +59,10 @@ def test_forecast_totals_and_series_are_consistent():
 def test_summary_and_risk_list():
     s = client.get("/api/summary", params={**S1, "agency": "DEP"}).json()
     assert s["kpis"]["alert_count"] >= 1 and s["kpis"]["agency_quadrant"]
+    # 지원 가능 부서 칸 = 인력 지원 권고의 지원 가능 부서와 같은 목록
+    k, st = s["kpis"], client.get("/api/staffing", params=S1).json()
+    assert k["support_count"] == len(k["support_names"]) == len(st["supports"])
+    assert k["support_slack"] == pytest.approx(sum(x["slack"] for x in st["supports"]))
     r = client.get("/api/risk-list", params={"asof": "2026-10-12", "agency": "DCWP"}).json()
     assert all(i["method"] == "elapsed" and i["prob"] is None for i in r["items"])
     r = client.get("/api/risk-list", params={"asof": "2026-10-12", "agency": "DOT"}).json()
@@ -92,6 +96,26 @@ def test_weather_strip_uses_forecasts_known_at_asof():
             if a["source"] == "NWS":
                 month, day = (int(x) for x in a["issued"].split()[0].split("/"))
                 assert (month, day) <= (6, 20)
+
+
+def test_weather_strip_past_days_are_observations():
+    w = client.get("/api/weather/strip", params={"asof": "2025-06-30"}).json()
+    past = w["past"]
+    assert [d["date"] for d in past] == [f"2025-06-{x}" for x in range(23, 30)]   # 지난 7일, 오래된 날부터
+    assert [d["offset"] for d in past] == list(range(-7, 0))
+    assert all(d["mode"] == "관측" and d["lead"] == 0 for d in past)
+    assert past[0]["tmax"] == pytest.approx(39.6, abs=1)                         # 관측 일 최고기온 (openmeteo_bronx_daily.csv)
+    assert ("관측", "heat") in {(a["source"], a["kind"]) for a in past[0]["alerts"]}  # 6/23 폭염: 관측 판정
+    for d in past:                                                               # 기준일(6/30) 뒤에 발표된 NWS 특보는 없어야 함
+        for a in d["alerts"]:
+            if a["source"] == "NWS":
+                month, day = (int(x) for x in a["issued"].split()[0].split("/"))
+                assert (month, day) <= (6, 30)
+    # 관측일 모달: 예보일과 같은 형식 (특보 있으면 과거 7년 표)
+    day = client.get("/api/weather/day", params={"asof": "2025-06-30", "date": "2025-06-23"}).json()
+    assert day["day"]["mode"] == "관측" and [t["kind"] for t in day["tabs"]] == ["heat"]
+    r = client.get("/api/weather/day", params={"asof": "2025-06-30", "date": "2025-06-22"})   # 8일 전은 범위 밖
+    assert r.status_code == 400
 
 
 def test_weather_day_history_matches_verification_doc():

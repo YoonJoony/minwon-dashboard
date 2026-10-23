@@ -10,18 +10,28 @@ import { AgencyIcon, ErrorState, Panel, QuadrantChip, Skeleton, Trend } from './
 
 const order = (q: string) => QUADRANTS.indexOf(q as (typeof QUADRANTS)[number])
 
-/** 패널 폭에 따라 열 구성을 바꿉니다: 넓으면 범위·평소 대비·실제를 각각 열로, 좁으면 한 칸에 두 줄로 */
-type Layout = { wide: boolean; actualCol: boolean; cols: string }
+/**
+ * 패널 폭에 따라 열 구성을 바꿉니다: 넓으면 범위·평소 대비·실제를 각각 열로, 좁으면 한 칸에 두 줄로.
+ * 모바일 폭(480px 미만)은 열 대신 부서마다 두 줄 카드(이름·판정 / 숫자)로 보여 부서 이름이 잘리지 않게 함
+ */
+type Layout = { compact: boolean; wide: boolean; actualCol: boolean; cols: string }
 function layoutFor(width: number, hasActual: boolean): Layout {
+  const compact = width < 480
   const wide = width >= 600
   const actualCol = hasActual && width >= 700
+  // 한 줄 전체를 쓸 만큼 넓으면(1000px~) 숫자 열이 오른쪽에 몰리지 않게 열을 고르게 나눔
+  const full = width >= 1000
   // Tailwind가 클래스를 찾을 수 있도록 전체 이름을 그대로 적습니다.
   const cols = !wide
     ? 'grid-cols-[minmax(0,1.4fr)_minmax(84px,1fr)_56px_minmax(88px,auto)]'
+    : full
+      ? actualCol
+        ? 'grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]'
+        : 'grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]'
     : actualCol
       ? 'grid-cols-[minmax(0,1.5fr)_minmax(96px,1fr)_70px_60px_minmax(92px,auto)_88px]'
       : 'grid-cols-[minmax(0,1.5fr)_minmax(96px,1fr)_70px_60px_minmax(92px,auto)]'
-  return { wide, actualCol, cols }
+  return { compact, wide, actualCol, cols }
 }
 
 export function DeptPanel({ className }: { className?: string }) {
@@ -52,14 +62,16 @@ export function DeptPanel({ className }: { className?: string }) {
           </div>
         ) : (
           <div className={clsx('transition-opacity', isFetching && 'opacity-60')}>
-            <div className={clsx('grid gap-3 px-4 pb-2 text-[12px] font-medium text-faint', lay.cols)}>
-              <span>부서 (예상 비중)</span>
-              <span className="text-right">{lay.wide ? '예상 접수 · 80% 범위' : '예상 접수 · 평소 대비'}</span>
-              {lay.wide && <span className="text-right">평소 대비</span>}
-              <span className="text-right">적체</span>
-              <span className="text-right">판정</span>
-              {lay.actualCol && <span className="text-right">실제</span>}
-            </div>
+            {!lay.compact && (
+              <div className={clsx('grid gap-3 px-4 pb-2 text-[12px] font-medium text-faint', lay.cols)}>
+                <span>부서 (예상 비중)</span>
+                <span className="text-right">{lay.wide ? '예상 접수 · 80% 범위' : '예상 접수 · 평소 대비'}</span>
+                {lay.wide && <span className="text-right">평소 대비</span>}
+                <span className="text-right">적체</span>
+                <span className="text-right">판정</span>
+                {lay.actualCol && <span className="text-right">실제</span>}
+              </div>
+            )}
             <ul className="space-y-1.5">
               {items.map((it) => (
                 <Row
@@ -113,18 +125,62 @@ function Row({
   onClick: () => void
 }) {
   const actualText = hasActual ? `실제 ${fmtInt(it.actual)}건 · ${it.in_range ? '80% 범위 안' : '80% 범위 밖'}` : ''
+  const title = `${it.name} · 예상 ${fmtInt(it.pred)}건 (80% 범위 ${fmtInt(it.lo)}~${fmtInt(it.hi)}) · 평소 ${fmtInt(it.base)}건${actualText ? ` · ${actualText}` : ''}`
+  const tone = selected ? 'bg-brand-tint ring-1 ring-brand/30' : 'bg-[#f8f8fb] hover:bg-[#f2f2f7]'
+  if (lay.compact)
+    return (
+      <li>
+        <button
+          type="button"
+          onClick={onClick}
+          aria-pressed={selected}
+          title={title}
+          className={clsx('w-full rounded-xl px-3.5 py-2.5 text-left text-[14px] transition', tone)}
+        >
+          {/* 1줄: 판정 색 · 부서 이름 · 판정 */}
+          <span className="flex items-center gap-2.5">
+            <span className="h-7 w-1 shrink-0 rounded-full" style={{ background: QUADRANT_COLOR[it.quadrant] }} />
+            <AgencyIcon code={it.agency} size={17} className="shrink-0 text-mute" />
+            <span className="min-w-0 flex-1">
+              <span className="flex min-w-0 items-baseline gap-1.5">
+                <b className="truncate font-semibold text-ink">{it.name}</b>
+                <span className="shrink-0 text-[12px] text-faint num">{Math.round(share * 100)}%</span>
+              </span>
+              <span className="block truncate text-[12px] text-mute">{desc}</span>
+            </span>
+            <QuadrantChip q={it.quadrant} />
+          </span>
+          {/* 2줄: 예상 접수 · 평소 대비 · 적체 · 실제 */}
+          <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 pl-[34px] text-[13px] num">
+            <span>
+              <b className="font-bold text-ink">{fmtInt(it.pred)}</b>
+              <span className="text-mute">건</span> <Trend value={it.x} className="text-[12px]" />
+            </span>
+            <span className="text-mute">
+              적체{' '}
+              <b className={clsx('font-semibold', it.y >= 1.3 ? 'text-[#b77412]' : 'text-ink')}>{fmtMult(it.y, 2)}</b>
+            </span>
+            {hasActual && (
+              <span className="inline-flex items-center gap-1.5 text-mute">
+                실제 <b className="font-semibold text-ink">{fmtInt(it.actual)}</b>
+                <InRange it={it} />
+              </span>
+            )}
+          </span>
+          {it.flag && (
+            <span className="mt-1 block pl-[34px] text-[11px] font-semibold text-[#c2362d]">{it.flag_reason}</span>
+          )}
+        </button>
+      </li>
+    )
   return (
     <li>
       <button
         type="button"
         onClick={onClick}
         aria-pressed={selected}
-        title={`${it.name} · 예상 ${fmtInt(it.pred)}건 (80% 범위 ${fmtInt(it.lo)}~${fmtInt(it.hi)}) · 평소 ${fmtInt(it.base)}건${actualText ? ` · ${actualText}` : ''}`}
-        className={clsx(
-          'grid w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-[14px] transition',
-          lay.cols,
-          selected ? 'bg-brand-tint ring-1 ring-brand/30' : 'bg-[#f8f8fb] hover:bg-[#f2f2f7]',
-        )}
+        title={title}
+        className={clsx('grid w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-[14px] transition', lay.cols, tone)}
       >
         <span className="flex min-w-0 items-center gap-2.5">
           <span className="h-7 w-1 shrink-0 rounded-full" style={{ background: QUADRANT_COLOR[it.quadrant] }} />

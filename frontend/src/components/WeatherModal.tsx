@@ -7,7 +7,7 @@ import { fmtBase, fmtExcess } from '../lib/weather'
 import { LEVEL_TONE, SKY_ICON, WX_ALERT_ICON } from './icons'
 import { ErrorState, Modal, Skeleton } from './ui'
 
-/** 예보 띠에서 고른 날의 예보. 그날 특보가 있으면 같은 특보의 과거 7년 실제 민원 접수·처리 표를 함께 */
+/** 예보 띠에서 고른 날의 예보(지난 7일은 실제 관측). 그날 특보가 있으면 같은 특보의 과거 7년 실제 민원 접수·처리 표를 함께 */
 export function WeatherModal({
   asof,
   date,
@@ -21,8 +21,9 @@ export function WeatherModal({
 }) {
   const { data, error, refetch } = useWeatherDay(asof, date)
   const ready = data && data.day.date === date
+  const title = date ? `${fmtYMDW(date)} ${date < asof ? '관측 날씨' : '기상 예보'}` : ''
   return (
-    <Modal open={date !== null} onClose={onClose} title={date ? `${fmtYMDW(date)} 기상 예보` : ''} width={hasAlert ? 1000 : 560}>
+    <Modal open={date !== null} onClose={onClose} title={title} width={hasAlert ? 1000 : 560}>
       {error && !ready ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : !ready ? (
@@ -40,7 +41,7 @@ export function WeatherModal({
 
 function Body({ data }: { data: WeatherDayOut }) {
   const [tab, setTab] = useState(0)
-  // 특보 없는 날은 과거 7년 표 없이 그날 예보만
+  // 특보 없는 날은 과거 7년 표 없이 그날 예보(관측)만
   if (!data.tabs.length) return <DaySummary d={data.day} />
   const h = data.tabs[Math.min(tab, data.tabs.length - 1)]
   return (
@@ -96,7 +97,7 @@ function DaySummary({ d }: { d: WeatherDay }) {
             {d.gust != null && ` · 최대 돌풍 ${Math.round(d.gust)}km/h`}
           </p>
           <p className="mt-0.5 text-[12px] text-faint">
-            {d.offset === 0 ? '전날' : '기준일'} 발표 예보 ({d.lead}일 전)
+            {d.offset < 0 ? '실제 관측 (Open-Meteo 관측 기록)' : `${d.offset === 0 ? '전날' : '기준일'} 발표 예보 (${d.lead}일 전)`}
           </p>
         </div>
       </div>
@@ -114,7 +115,7 @@ function DaySummary({ d }: { d: WeatherDay }) {
               <Icon size={15} color={tone.icon} aria-hidden="true" />
               <b className="font-semibold">{a.label}</b>
               <span className="text-[12px] opacity-80">
-                {a.source === 'NWS' ? `NWS 발표 ${a.issued ?? ''}` : '예보 판정'}
+                {a.source === 'NWS' ? `NWS 발표 ${a.issued ?? ''}` : `${a.source} 판정`}
               </span>
             </li>
           )

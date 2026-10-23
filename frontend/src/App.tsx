@@ -7,7 +7,6 @@ import { Header, LogoMark } from './components/Header'
 import { IssuePanel } from './components/IssuePanel'
 import { KpiRow } from './components/KpiRow'
 import { MatrixPanel } from './components/MatrixPanel'
-import { RiskPanel } from './components/RiskPanel'
 import { StaffingPanel } from './components/StaffingPanel'
 import { ContextBanner, DemoDock, PageHeader, TabBar } from './components/Top'
 import { DashboardProvider, useDash } from './state/dashboard'
@@ -35,11 +34,17 @@ export default function App() {
   )
 }
 
-/** 시안의 2단 구역: 왼쪽·오른쪽 패널 사이와 줄 사이에 가는 선 */
-function Row({ children }: { children: ReactNode }) {
+/** 시안의 2단 구역: 왼쪽·오른쪽 패널 사이와 줄 사이에 가는 선. full이면 패널 하나가 한 줄 전체 */
+function Row({ children, full = false }: { children: ReactNode; full?: boolean }) {
   return (
     <div className="border-b border-line">
-      <div className="mx-auto grid max-w-[1680px] lg:grid-cols-2 lg:divide-x lg:divide-line max-lg:divide-y max-lg:divide-line">
+      <div
+        className={
+          full
+            ? 'mx-auto max-w-[1680px]'
+            : 'mx-auto grid max-w-[1680px] lg:grid-cols-2 lg:divide-x lg:divide-line max-lg:divide-y max-lg:divide-line'
+        }
+      >
         {children}
       </div>
     </div>
@@ -64,9 +69,8 @@ function Dashboard() {
           <ForecastPanel />
           <IssuePanel />
         </Row>
-        <Row>
+        <Row full>
           <DeptPanel />
-          <RiskPanel />
         </Row>
       </main>
       <Footer />

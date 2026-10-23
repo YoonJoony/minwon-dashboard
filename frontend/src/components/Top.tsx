@@ -39,7 +39,7 @@ export function TabBar() {
 export function PageHeader() {
   const { state, isLatest, agencyName, short, days, openEvidence } = useDash()
   return (
-    <div className="mx-auto flex max-w-[1680px] flex-wrap items-end justify-between gap-x-6 gap-y-4 px-5 pb-6 pt-8 lg:px-10">
+    <div className="mx-auto flex max-w-[1680px] flex-wrap items-end justify-between gap-x-6 gap-y-4 px-5 pb-4 pt-6 lg:px-10">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h1 className="text-[30px] font-bold tracking-[-0.025em] text-ink lg:text-[34px]">민원 운영 대시보드</h1>

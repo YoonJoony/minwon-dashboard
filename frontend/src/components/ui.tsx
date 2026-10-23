@@ -15,7 +15,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
 import { fmtPct } from '../lib/format'
 import { QUADRANT_COLOR, QUADRANT_TINT } from '../lib/theme'
 import { useDash } from '../state/dashboard'
@@ -39,7 +39,7 @@ export function Panel({ title, subtitle, actions, evidenceKey, children, classNa
     <section
       aria-label={title}
       className={clsx(
-        'relative min-w-0 px-6 py-7 transition-colors duration-300 lg:px-9 lg:py-8',
+        'relative min-w-0 px-5 py-7 transition-colors duration-300 lg:px-10 lg:py-8', // 좌우 여백은 위 제목·핵심 지표와 같게
         focus && 'bg-brand-tint/45',
         className,
       )}
@@ -267,6 +267,22 @@ export function Popover({
   className?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  // 창이 화면 밖으로 나가지 않게, 열릴 때 버튼 위치를 보고 가로 위치를 맞춤 (좌우 16px 여백)
+  const [left, setLeft] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    if (!open) return
+    const place = () => {
+      const r = ref.current?.getBoundingClientRect()
+      if (!r) return
+      const vw = document.documentElement.clientWidth
+      const w = Math.min(width, vw - 32)
+      const want = align === 'right' ? r.width - w : 0
+      setLeft(Math.min(Math.max(want, 16 - r.left), vw - 16 - w - r.left))
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [open, align, width])
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
@@ -290,9 +306,9 @@ export function Popover({
           className={clsx(
             'absolute top-full z-40 mt-2 max-w-[calc(100vw-32px)] rounded-2xl border border-line bg-white p-2',
             'shadow-[0_18px_48px_-16px_rgba(22,22,29,0.28)]',
-            align === 'right' ? 'right-0' : 'left-0',
+            left === null && (align === 'right' ? 'right-0' : 'left-0'),
           )}
-          style={{ width }}
+          style={{ width, ...(left !== null && { left }) }}
         >
           {children}
         </div>

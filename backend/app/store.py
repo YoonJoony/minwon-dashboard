@@ -22,6 +22,7 @@ from engine.config import (
     PER_PERSON_DEFAULT,
     STRIP_DAYS,
     STRIP_FORECAST_DAYS,
+    STRIP_PAST_DAYS,
     SUPPORT_X,
     WEATHER_ISSUES,
     WEATHER_LABEL,
@@ -92,6 +93,9 @@ class Store:
         self._fdays = opt("forecast_days")
         if len(self._fdays):
             self._fdays = self._fdays.set_index(["date", "lead"]).sort_index()
+        self._odays = opt("observed_days")
+        if len(self._odays):
+            self._odays = self._odays.set_index("date").sort_index()
         self._nws = opt("nws_alerts")
         self._wev = opt("weather_events")
 
@@ -135,7 +139,7 @@ class Store:
             "agencies": [{"code": c, **AGENCY_INFO[c]} for c in AGENCIES],
             "asofs": [_d(x) for x in self.asofs], "latest": _d(self.latest), "data_end": _d(self.data_end),
             "scenarios": self.manifest["scenarios"],
-            "presets": [{"key": "7d", "label": "다음 7일"}, {"key": "14d", "label": "다음 14일"},
+            "presets": [{"key": "7d", "label": "다음 7일"},
                         {"key": "month", "label": "다음 한 달"}, {"key": "quarter", "label": "다음 분기"}],
             "max_days": MAX_DAYS, "thresholds": {"x": X_TH, "y": Y_TH, "support_x": SUPPORT_X}, "per_person_default": PER_PERSON_DEFAULT,
             "built_at": self.manifest["built_at"], "data_note": DATA_NOTE,
@@ -186,8 +190,7 @@ class Store:
             t = we + D(days=1)
         return {"period": self.period_out(a, s, e, src), "agency": agency, "granularity": gran, "total": tot,
                 "by_agency": rows, "series": series,
-                "range_note": "막대의 빗금은 80% 예측 범위 상한입니다 (같은 방식 과거 예측 오차의 90% 지점, 기간 전체 기준). "
-                              "기상 특보가 걸린 부서는 범위를 넓혀 표시합니다."}
+                "range_note": "막대의 빗금은 80% 예측 범위 상한입니다."}
 
     @staticmethod
     def _label(t: pd.Timestamp, gran: str) -> str:
@@ -392,7 +395,9 @@ class Store:
             "agency_quadrant": m.at[agency, "quadrant"] if agency else None,
             "backlog_open": open_, "backlog_normal": normal, "backlog_multiple": open_ / normal if normal else 0.0,
             "need_people": float(sum(n["people"] for n in needs)), "need_count": float(sum(n["need"] for n in needs)),
-            "support_count": len(st["supports"]), "coverage": _f(st["coverage"]),
+            "support_count": len(st["supports"]),
+            "support_names": [AGENCY_INFO[x["agency"]]["name"] for x in st["supports"]],
+            "support_slack": float(sum(x["slack"] for x in st["supports"])), "coverage": _f(st["coverage"]),
         }}
 
     # ------------------------------------------------------------------ 지연 위험 민원
@@ -421,16 +426,22 @@ class Store:
 
     # ------------------------------------------------------------------ 7일 기상 예보 띠 · 과거 7년 모달
     def _strip_day(self, a: pd.Timestamp, k: int) -> dict:
-        """기준일 + k일 칸. 오늘은 전날 발표, +k일은 기준일에 발표된 k일 전 예보. NWS 특보는 기준일까지 발표된 것만."""
+        """기준일 + k일 칸. 오늘은 전날 발표, +k일은 기준일에 발표된 k일 전 예보, −k일(지난 7일)은 실제 관측.
+        NWS 특보는 기준일까지 발표된 것만."""
         d = a + D(days=k)
-        lead = max(k, 1)
-        r = self._fdays.loc[(d, lead)] if len(self._fdays) and (d, lead) in self._fdays.index else None
+        past = k < 0
+        lead = 0 if past else max(k, 1)
+        if past:
+            r = self._odays.loc[d] if len(self._odays) and d in self._odays.index else None
+        else:
+            r = self._fdays.loc[(d, lead)] if len(self._fdays) and (d, lead) in self._fdays.index else None
+        src = "관측" if past else "예보"
         alerts = []
         if r is not None:
-            for kind in ("heat", "snow", "wind"):              # 호우는 예보 판정 대신 실제 NWS 특보만 (검증 문서 2-3)
+            for kind in ("heat", "snow", "wind"):              # 호우는 예보·관측 판정 대신 실제 NWS 특보만 (검증 문서 2-3)
                 lv = int(r[f"{kind}_level"]) if pd.notna(r[f"{kind}_level"]) else 0
                 if lv >= 1:
-                    alerts.append({"kind": kind, "kind_label": WEATHER_LABEL[kind], "level": lv, "source": "예보",
+                    alerts.append({"kind": kind, "kind_label": WEATHER_LABEL[kind], "level": lv, "source": src,
                                    "label": f"{WEATHER_LABEL[kind]}{'경보' if lv == 2 else '주의보'} 수준"})
         if len(self._nws):
             n = self._nws
@@ -440,14 +451,16 @@ class Store:
                                "source": "NWS", "issued": f"{x.issued.month}/{x.issued.day} {x.issued:%H:%M}"})
         icon = r["icon"] if r is not None and isinstance(r["icon"], str) else None
         return {"date": _d(d), "offset": k, "label": "오늘" if k == 0 else WEEKDAY[d.dayofweek], "lead": lead,
-                "mode": "예보" if k < STRIP_FORECAST_DAYS else "참고", "icon": icon, "icon_label": ICON_LABEL.get(icon),
+                "mode": "관측" if past else "예보" if k < STRIP_FORECAST_DAYS else "참고", "icon": icon, "icon_label": ICON_LABEL.get(icon),
                 **{c: (_f(r[c]) if r is not None else None) for c in ("tmax", "tmin", "prcp", "snow", "gust")},
                 "alerts": alerts}
 
     def weather_strip(self, asof: str) -> dict:
         a, _, _ = self.period(asof, None, None)
-        return {"asof": _d(a), "days": [self._strip_day(a, k) for k in range(STRIP_DAYS)],
+        past = [self._strip_day(a, k) for k in range(-STRIP_PAST_DAYS, 0)] if len(self._odays) else []
+        return {"asof": _d(a), "days": [self._strip_day(a, k) for k in range(STRIP_DAYS)], "past": past,
                 "note": (f"오늘 칸은 전날, +k일 칸은 기준일에 발표된 k일 전 예보입니다(Open-Meteo 예보 보관 기록). "
+                         f"지난 {STRIP_PAST_DAYS}일은 실제 관측(Open-Meteo 관측 기록)이고 특보 수준은 관측 값으로 판정합니다. "
                          f"앞 {STRIP_FORECAST_DAYS}칸은 예보, 뒤 칸은 참고(가능성). 특보 수준은 예보 값에 미국 기상청(NWS 뉴욕 지청) "
                          "기준을 대입한 판정이고, 'NWS'는 기준일까지 실제 발표된 특보입니다.")}
 
@@ -494,8 +507,9 @@ class Store:
         except ValueError as err:
             raise HTTPException(400, f"날짜 형식이 올바르지 않습니다: {err}") from err
         k = (d - a).days
-        if not 0 <= k < STRIP_DAYS:
-            raise HTTPException(400, f"날짜는 기준일부터 {STRIP_DAYS}일 안에서 고르세요.")
+        lo = -STRIP_PAST_DAYS if len(self._odays) else 0
+        if not lo <= k < STRIP_DAYS:
+            raise HTTPException(400, f"날짜는 기준일 전 {-lo}일 ~ 기준일부터 {STRIP_DAYS}일 안에서 고르세요.")
         day = self._strip_day(a, k)
         # 그날 특보가 있는 종류만 과거 7년 표를 만듦 (특보 없는 날은 빈 목록 → 화면은 예보만)
         kinds = [x for x in WEATHER_LABEL if any(al["kind"] == x for al in day["alerts"])]

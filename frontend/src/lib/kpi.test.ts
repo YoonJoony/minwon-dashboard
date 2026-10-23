@@ -20,6 +20,8 @@ const base: SummaryOut = {
     need_people: 1.229,
     need_count: 61.46,
     support_count: 0,
+    support_names: [],
+    support_slack: 0,
     coverage: 0,
   },
 }
@@ -27,15 +29,32 @@ const base: SummaryOut = {
 describe('상단 핵심 지표', () => {
   it('폭염 시나리오 문구', () => {
     const k = buildKpis(base, { days: 7, ppd: 10, agencySelected: false })
-    expect(k.map((x) => x.key)).toEqual(['forecast', 'alerts', 'focus', 'backlog', 'staff'])
+    expect(k.map((x) => x.key)).toEqual(['forecast', 'alerts', 'support', 'focus', 'backlog', 'staff'])
     expect(k[0].value).toBe('3,362')
     expect(k[0].sub).toContain('실제 9,007건')
     expect(k[1].value).toBe('3')
     expect(k[1].chip).toEqual({ text: '폭염경보 6/22', tone: 'danger' })
+    expect(k[2].value).toBe('0')
+    expect(k[2].valueColor).toBeUndefined()
     expect(k[2].note).toBe('해당 부서 없음')
-    expect(k[3].chip?.tone).toBe('muted')
-    expect(k[4].value).toBe('1.2')
-    expect(k[4].sub).toContain('1인 하루 10건')
+    expect(k[3].note).toBe('해당 부서 없음')
+    expect(k[4].chip?.tone).toBe('muted')
+    expect(k[5].value).toBe('1.2')
+    expect(k[5].sub).toContain('1인 하루 10건')
+    expect(k[5].sub).not.toContain('지원 가능')
+  })
+
+  it('지원 가능 부서가 있으면 숫자는 초록색, 이름과 여유 건수', () => {
+    const s: SummaryOut = { ...base, kpis: { ...base.kpis, support_count: 2, support_names: ['위생국', '교통국'], support_slack: 313.4 } }
+    const k = buildKpis(s, { days: 7, ppd: 10, agencySelected: false })
+    expect(k[2].value).toBe('2')
+    expect(k[2].valueColor).toBe('#22a06b')
+    expect(k[2].note).toBe('위생국, 교통국')
+    expect(k[2].sub).toContain('여유 313건')
+    const four = { ...s.kpis, support_count: 4, support_names: ['위생국', '교통국', '환경보호국', '보건정신위생국'] }
+    const k4 = buildKpis({ ...s, kpis: four }, { days: 7, ppd: 10, agencySelected: false })
+    expect(k4[2].note).toBe('위생국, 교통국 외 2곳')
+    expect(k4[2].title).toBe('위생국, 교통국, 환경보호국, 보건정신위생국')
   })
 
   it('특보가 없으면 "없음", 부서를 고르면 판정을 보여 준다', () => {
@@ -47,8 +66,8 @@ describe('상단 핵심 지표', () => {
     const k = buildKpis(s, { days: 7, ppd: 10, agencySelected: true })
     expect(k[1].value).toBe('없음')
     expect(k[1].chip).toBeUndefined()
-    expect(k[2].label).toBe('부서 판정')
-    expect(k[2].value).toBe('집중관리')
-    expect(k[3].chip?.tone).toBe('warning')
+    expect(k[3].label).toBe('부서 판정')
+    expect(k[3].value).toBe('집중관리')
+    expect(k[4].chip?.tone).toBe('warning')
   })
 })

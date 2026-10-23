@@ -21,7 +21,7 @@ from engine import forecast_short as fs
 from engine import issues as isu
 from engine import risk as rk
 from engine import weather as wx
-from engine.config import AGENCIES, ARTIFACTS, ASOF_START, LATEST, MAX_DAYS, ROOT, STRIP_DAYS
+from engine.config import AGENCIES, ARTIFACTS, ASOF_START, LATEST, MAX_DAYS, ROOT, STRIP_DAYS, STRIP_PAST_DAYS
 from engine.content import EVIDENCE, SCENARIOS
 from engine.dashboard import AsofData, matrix
 from engine.data import complaints, daily_counts, daily_issues, holidays, weather_daily
@@ -143,10 +143,11 @@ def main(argv=None) -> int:
     nws = wx.nws_alerts()
     weather = {
         "forecast_days": wx.forecast_days(asofs[0], asofs[-1] + D(days=STRIP_DAYS - 1)),
+        "observed_days": wx.observed_days(obs_lv, asofs[0] - D(days=STRIP_PAST_DAYS), asofs[-1]),
         "nws_alerts": nws,
         "weather_events": wx.history_events(obs_lv, nws, df, data_end),
     }
-    log(f"기상 예보 띠 {len(weather['forecast_days']):,}행, NWS 특보 {len(nws):,}건, "
+    log(f"기상 예보 띠 {len(weather['forecast_days']):,}행, 지난 7일 관측 {len(weather['observed_days']):,}일, NWS 특보 {len(nws):,}건, "
         f"과거 사건 {weather['weather_events'].groupby('kind').event.nunique().to_dict()}")
 
     # ---------------- 저장

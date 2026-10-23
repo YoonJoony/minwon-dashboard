@@ -597,7 +597,7 @@
   "/api/weather/strip": {
    "get": {
     "summary": "Weather Strip",
-    "description": "7일 기상 예보 띠: 기준일 포함 8일의 날씨 아이콘·기온·강수, 특보 수준(예보 판정), 기준일까지 발표된 NWS 특보.",
+    "description": "7일 기상 예보 띠: 기준일 포함 8일의 날씨 아이콘·기온·강수, 특보 수준(예보 판정), 기준일까지 발표된 NWS 특보.\npast는 지난 7일 실제 관측(특보 수준은 관측 판정).",
     "operationId": "weather_strip_api_weather_strip_get",
     "parameters": [
      {
@@ -639,7 +639,7 @@
   "/api/weather/day": {
    "get": {
     "summary": "Weather Day",
-    "description": "예보 띠에서 고른 날: 그날 예보와, 같은 기상 이슈의 과거 7년 실제 민원 접수·처리 (특보 종류별 탭).",
+    "description": "예보 띠에서 고른 날: 그날 예보(지난 7일은 관측)와, 같은 기상 이슈의 과거 7년 실제 민원 접수·처리 (특보 종류별 탭).",
     "operationId": "weather_day_api_weather_day_get",
     "parameters": [
      {
@@ -659,10 +659,10 @@
       "required": true,
       "schema": {
        "type": "string",
-       "description": "예보 띠에서 고른 날짜 (기준일 ~ +7일)",
+       "description": "예보 띠에서 고른 날짜 (기준일 −7일 ~ +7일)",
        "title": "Date"
       },
-      "description": "예보 띠에서 고른 날짜 (기준일 ~ +7일)"
+      "description": "예보 띠에서 고른 날짜 (기준일 −7일 ~ +7일)"
      }
     ],
     "responses": {
@@ -1303,6 +1303,17 @@
       "type": "integer",
       "title": "Support Count"
      },
+     "support_names": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Support Names"
+     },
+     "support_slack": {
+      "type": "number",
+      "title": "Support Slack"
+     },
      "coverage": {
       "anyOf": [
        {
@@ -1331,6 +1342,8 @@
      "need_people",
      "need_count",
      "support_count",
+     "support_names",
+     "support_slack",
      "coverage"
     ],
     "title": "Kpis"
@@ -2700,6 +2713,13 @@
       "type": "array",
       "title": "Days"
      },
+     "past": {
+      "items": {
+       "$ref": "#/components/schemas/WeatherDay"
+      },
+      "type": "array",
+      "title": "Past"
+     },
      "note": {
       "type": "string",
       "title": "Note"
@@ -2709,6 +2729,7 @@
     "required": [
      "asof",
      "days",
+     "past",
      "note"
     ],
     "title": "WeatherStripOut"

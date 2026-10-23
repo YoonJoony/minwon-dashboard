@@ -23,6 +23,13 @@ describe('예보 띠 특보 묶기', () => {
     expect(s[0].labels).toContain('극한 폭염 예비특보 (NWS 발표)')
     expect(s[1]).toMatchObject({ level: 1, nws: false })
   })
+  it('지난 7일 관측 판정은 예보 판정처럼 묶고 NWS 발표로 치지 않음', () => {
+    const s = summarizeAlerts([a('heat', 2, '관측', '폭염경보 수준'), a('heat', 1, 'NWS', '폭염 주의보')])
+    expect(s).toHaveLength(1)
+    expect(s[0]).toMatchObject({ kind: 'heat', level: 2, nws: true })
+    expect(s[0].labels).toEqual(['폭염경보 수준', '폭염 주의보 (NWS 발표)'])
+    expect(summarizeAlerts([a('snow', 1, '관측', '대설주의보 수준')])[0].nws).toBe(false)
+  })
   it('특보가 없으면 빈 목록', () => {
     expect(summarizeAlerts([])).toEqual([])
   })

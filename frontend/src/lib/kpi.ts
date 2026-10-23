@@ -11,12 +11,13 @@ export type KpiView = {
   unit?: string
   valueColor?: string
   note: string
+  title?: string // note 전체 문구 (줄여 보일 때 마우스 올리면 보임)
   trend?: number
   chip?: { text: string; tone: ChipTone }
   sub: string
 }
 
-/** 상단 핵심 지표 5칸의 문구를 만듭니다 (화면과 테스트가 함께 씀). */
+/** 상단 핵심 지표 6칸의 문구를 만듭니다 (화면과 테스트가 함께 씀). */
 export function buildKpis(s: SummaryOut, o: { days: number; ppd: number; agencySelected: boolean }): KpiView[] {
   const k = s.kpis
   const f = k.forecast
@@ -39,6 +40,20 @@ export function buildKpis(s: SummaryOut, o: { days: number; ppd: number; agencyS
       note: k.alert_top ? '' : '특보 수준 날씨 예보 없음',
       chip: k.alert_top ? { text: k.alert_top, tone: k.alert_top.includes('경보') ? 'danger' : 'warning' } : undefined,
       sub: k.alert_detail,
+    },
+    {
+      key: 'support',
+      label: '지원 가능 부서',
+      value: String(k.support_count),
+      unit: '곳',
+      valueColor: k.support_count > 0 ? QUADRANT_COLOR['지원 가능'] : undefined,
+      // 칸이 좁아 앞의 2곳만 이름으로 (전체 이름은 마우스를 올리면 보임)
+      note:
+        k.support_names.length > 2
+          ? `${k.support_names.slice(0, 2).join(', ')} 외 ${k.support_names.length - 2}곳`
+          : k.support_names.join(', ') || '해당 부서 없음',
+      title: k.support_names.join(', ') || undefined,
+      sub: (k.support_count > 0 ? `여유 ${fmtInt(k.support_slack)}건 · ` : '') + '접수 −10% 이하 · 적체 1.3배 미만',
     },
     o.agencySelected && q
       ? {
@@ -74,7 +89,7 @@ export function buildKpis(s: SummaryOut, o: { days: number; ppd: number; agencyS
       unit: '명',
       note: k.need_count >= 1 ? `적체 증가 예상 ${fmtInt(k.need_count)}건` : '적체 증가 예상 부서 없음',
       sub:
-        `1인 하루 ${o.ppd}건 · 지원 가능 ${k.support_count}곳` +
+        `1인 하루 ${o.ppd}건` +
         (k.coverage != null ? ` · 충당 ${Math.round(k.coverage * 100)}%` : ''),
     },
   ]

@@ -22,7 +22,7 @@ export function StaffingPanel({ className }: { className?: string }) {
   return (
     <Panel
       title="인력 지원 권고"
-      subtitle="적체가 늘 것으로 보이는 부서와, 접수가 줄어 여유가 생기는 '지원 가능' 부서를 짝지어 보여 줍니다"
+      subtitle="접수가 늘거나 줄어 바쁜 부서와 여유가 생기는 '지원 가능' 부서를 짝지어 보여 줍니다"
       evidenceKey="staffing"
       className={className}
       actions={
@@ -45,8 +45,8 @@ export function StaffingPanel({ className }: { className?: string }) {
         </>
       ) : (
         <div className={isFetching ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
-          <Summary data={data} />
           {needs.length > 0 ? <NeedCard data={data} index={i} /> : <NoNeed data={data} />}
+          <Summary data={data} />
           {excluded.length > 0 && (
             <p className="mt-3 flex items-start gap-2 rounded-xl bg-[#fdf5e8] px-3.5 py-2.5 text-[13px] text-[#8a4b06]">
               <TriangleAlert size={16} className="mt-0.5 shrink-0" />
@@ -101,7 +101,7 @@ function NeedCard({ data, index }: { data: StaffingOut; index: number }) {
   const ratio = n.need > 0 ? n.covered / n.need : 0
   const color = QUADRANT_COLOR[n.quadrant] ?? '#5b4fe0'
   return (
-    <article className="mt-4 rounded-2xl border border-line p-5">
+    <article className="mb-4 rounded-2xl border border-line p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <AgencyTile code={n.agency} color={color} bg={QUADRANT_TINT[n.quadrant]} />
@@ -159,7 +159,7 @@ function NeedCard({ data, index }: { data: StaffingOut; index: number }) {
 function NoNeed({ data }: { data: StaffingOut }) {
   const { agencyName } = useDash()
   return (
-    <article className="mt-4 rounded-2xl border border-line p-5">
+    <article className="mb-4 rounded-2xl border border-line p-5">
       <div className="flex items-center gap-3">
         <span className="flex size-11 items-center justify-center rounded-xl bg-[#e5f5ed] text-[#17955a]">
           <CircleCheck size={22} />
