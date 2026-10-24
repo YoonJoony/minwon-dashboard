@@ -1,107 +1,108 @@
-# 스마트 민원케어 — 민원 조기경보 대시보드
+# 스마트 민원케어 — 민원 조기경보 · 인력 지원 대시보드
 
-부서와 기간을 선택하면 그 기간의 **민원 집중도(예상 건수, 예상 이슈, 2×2 위험 매트릭스)** 를 미리 보여 주고, 집중도가 높은 부서에 인력을 연결하도록 돕는 행정 지원 대시보드입니다. 전무님 평가·정부 제출용 시연을 목표로 합니다.
+민원이 몰릴 곳을 미리 알려 주고, 바빠질 부서와 도울 수 있는 부서를 이어 주는 행정 지원 대시보드입니다.
 
-화면 구성: 헤더(부서 선택·기상 특보 알림) → 탭 줄 가운데 7일 기상 예보 띠(칸을 누르면 그날 예보, 특보가 있는 날은 같은 특보의 과거 7년 민원 접수·처리. 왼쪽 `‹`로 넘기면 지난 7일 실제 관측) → 기준일·기간 선택 → 핵심 지표 6개 → 예상 접수 추이 · 예상 이슈 · 부서 위험 매트릭스 · 인력 지원 권고 · 부서별 현황, 그리고 시연 모드(시나리오 5개)와 검증 근거 창.
+**바로 보기:** http://129.225.152.209 (시연용 공개 서버, 시연 기간에만 운영)
 
-- 기획 기준 문서: [docs/서비스기획_정리.md](docs/서비스기획_정리.md)
-- 검증 결과 (10년치): [docs/검증결과_10년.md](docs/검증결과_10년.md)
+## 실행 방법
+
+준비물: macOS, [uv](https://docs.astral.sh/uv/), Node.js. 저장소에는 데이터 파일이 들어 있지 않으므로, 처음이라면 [데이터 받기](docs/실행_가이드.md#데이터-다시-만들기)를 먼저 실행합니다.
+
+```bash
+# 1) 설치 (처음 한 번)
+brew install uv libomp                          # libomp는 LightGBM용
+uv sync                                         # Python 3.12 환경과 패키지
+cd frontend && npm install && npm run build && cd ..
+
+# 2) 사전 계산 (처음 한 번, 데이터를 바꾼 뒤. 약 3분)
+uv run python -m engine.build
+
+# 3) 실행 → http://127.0.0.1:8000 (API 문서는 /docs)
+uv run uvicorn app.main:app --app-dir backend
+```
+
+화면 오른쪽 위 **시연 모드**를 누르면 평상시 → 폭염 → 블리자드 → 봄철 도로 파손 → 집중관리 순서로 진행합니다.
+개발 모드, 테스트, 데이터·검증 다시 만들기는 [docs/실행_가이드.md](docs/실행_가이드.md)에 있습니다.
+
+## 프로젝트 소개
+
+### 왜 만들었나
+
+- 공공부문 민원은 연 2,000만 건이 넘고, 날씨가 크게 바뀌면 특정 민원이 한꺼번에 몰립니다. 분석한 뉴욕 데이터에서는 2025년 6월 폭염 때 브롱크스 소화전 민원이 하루 2,377건으로 평소의 91배였습니다.
+- 지금은 민원이 몰린 뒤에야 인력을 돌립니다. 기존 서비스(국민권익위원회 「한눈에 보는 민원 빅데이터」)는 지난 통계와 월 단위 예보가 중심이라 부서별 업무 부담은 보이지 않습니다.
+
+### 무엇을 하나: 세 가지 질문에 답합니다
+
+| 질문 | 화면 | 방법 | 결과 (2022~2026 과거 재현) |
+|---|---|---|---|
+| 앞으로 민원이 얼마나 들어오나 | 핵심 지표, 예상 접수 추이 | 1~14일은 LightGBM, 한 달·분기는 계절 지수 × 최근 수준 | 다음 1주 오차 16.6%, 한 달 14% |
+| 어떤 민원이 언제 몰리나 | 7일 기상 예보 띠, 예상 이슈 | 미국 기상청 특보 기준에 그날 발표된 예보를 대입, 같은 시기 과거 급증 빈도 | 폭염을 1일 전 예보로 97% 포착, 경보 수준 날 뒤 민원 급증 83% |
+| 어느 부서가 바빠지고 누가 도울 수 있나 | 부서 위험 매트릭스, 인력 지원 권고 | 접수 증가율(+10%) × 적체 배수(1.3배)로 네 칸 판정, 적체 전환율로 필요 인원 환산 | 지원이 필요했던 주의 71%에 도울 부서가 있었고, 필요량의 평균 52%를 채움 |
+
+### 화면 구성
+
+화면 위에서부터 차례로, 기능마다 그 영역만 확대해 담았습니다. 이 밖에 부서별 현황 표와 검증 근거 창이 있습니다.
+
+**1. 기준일 · 기간 선택**
+
+![기준일 창에서 폭염 시나리오를 고르고 기간을 다음 한 달로 바꾸자 핵심 지표 숫자가 바뀌는 모습](docs/readme/01-period.gif)
+
+**2. 7일 기상 예보 띠**
+
+![폭염 경보·주의보 수준인 6/22~6/24를 강조한 뒤 왼쪽 버튼으로 지난 7일 관측 날씨로 넘기는 모습](docs/readme/02-weather-strip.gif)
+
+**3. 특보 날 상세**
+
+![6/22 폭염 특보 날을 눌러 과거 7년 같은 특보 때 소화전·수돗물 민원 접수와 처리 현황을 보는 모습](docs/readme/03-weather-day.gif)
+
+**4. 핵심 지표**
+
+![핵심 지표 6칸(예상 접수, 기상 특보 예보, 지원 가능 부서, 집중관리 부서, 처리 중 민원, 지원 필요 인원)을 차례로 강조하는 모습](docs/readme/04-kpi.gif)
+
+**5. 인력 지원 권고**
+
+![환경보호국에 필요한 2.7명을 교통국과 건축국이 채우고, 1인당 하루 처리 건수를 바꾸면 필요 인원이 다시 계산되는 모습](docs/readme/05-staffing.gif)
+
+**6. 부서 위험 매트릭스**
+
+![매트릭스의 환경보호국(집중관리), 교통국(지원 가능), 노숙자서비스국(처리지연 주의) 원에 마우스를 올려 상세를 보는 모습](docs/readme/06-matrix.gif)
+
+**7. 예상 접수 추이**
+
+![지난 2주 실적과 예측 막대, 6/22 경보 예보일과 6/24 실제 3,017건을 마우스로 짚어 보는 모습](docs/readme/07-forecast.gif)
+
+**8. 예상 이슈**
+
+![폭염경보 카드, 폭염·소화전 급증 카드, 그 밖의 이슈, 특보 머리 문구, 실제로 급증한 이슈를 차례로 강조하는 모습](docs/readme/08-issues.gif)
+
+**9. 시연 모드**
+
+![시연 모드를 켜고 평상시 한 달, 폭염, 블리자드 단계로 넘기는 모습](docs/readme/09-demo.gif)
+
+### 데이터
+
+- 뉴욕시 311 민원: 브롱크스 8개 부서, 2016-01 ~ 2026-10, 1,546,798건
+- Open-Meteo: 기상 관측, 1~7일 전에 발표된 과거 예보
+- 미국 기상청(NWS) 뉴욕 지청: 특보 기준, 실제 발표 특보 1,091건
+
+국내 민원은 건별 처리 기록이 공개되지 않아, 10년 넘게 같은 형태로 공개된 뉴욕 데이터로 방법을 먼저 검증했습니다. 국내에 적용할 때는 기관 민원 자료와 기상청 예보·특보로 다시 학습합니다.
+
+### 동작 방식
+
+무거운 계산(예측·특보 판정·인력 계산)은 시연 전에 기준일 145개마다 미리 끝내 저장하고(약 3분), 끝에 시연 장면 숫자를 검증표와 자동 대조합니다. 시연 중에는 FastAPI 서버가 저장된 결과에 가벼운 계산만 더해 응답하고(2~22ms, 맥북 기준), 인터넷 없이 노트북 한 대로 동작합니다.
+
+### 한계
+
+- 폭염·폭설처럼 큰 날씨가 오는 주의 건수는 숫자로 맞히지 못해, 특보 경보로 대신 알립니다.
+- 집중관리 판정은 정밀도 44%라 확정이 아닌 가능성으로 표시합니다.
+- 인원(명)은 1인 하루 10건이라는 가정값으로 환산하며, 화면에서 바꿀 수 있습니다.
+
+## 문서
+
+- 기획 기준: [docs/서비스기획_정리.md](docs/서비스기획_정리.md)
+- 10년치 검증 결과: [docs/검증결과_10년.md](docs/검증결과_10년.md)
 - 시연 리허설 검증: [docs/리허설_검증.md](docs/리허설_검증.md)
+- 7일 기상 예보 띠 검증: [docs/기상예보_기능_검증.md](docs/기상예보_기능_검증.md)
 - 개발 설계: [docs/개발설계.md](docs/개발설계.md)
-- 7일 기상 예보 띠·과거 7년 모달 검증: [docs/기상예보_기능_검증.md](docs/기상예보_기능_검증.md)
-- 파이썬 실습 노트(계산을 직접 짜 보고 엔진 결과와 대조): [study/2차_파이썬_실습.ipynb](study/2차_파이썬_실습.ipynb) — `uv run --group study jupyter lab study/2차_파이썬_실습.ipynb`, 노트 다시 만들기는 `uv run --group study python study/make_notebook.py study/2차_파이썬_실습.ipynb`
+- 실행 가이드: [docs/실행_가이드.md](docs/실행_가이드.md)
 - 데이터 설명: [data/NYC311_컬럼설명.md](data/NYC311_컬럼설명.md), [data/processed/README.md](data/processed/README.md)
-
-## 구성
-
-```
-minwon-dashboard/
-├─ pyproject.toml       Python 패키지 (uv로 관리, Python 3.12)
-├─ engine/              계산 패키지 (예측·특보·이슈·적체·지연 위험·매트릭스·인력) + 사전 계산(build.py)
-├─ backend/app/         FastAPI 서버 (사전 계산 결과를 메모리에 올려 응답)
-├─ frontend/            React + TypeScript (Vite) + Tailwind CSS + ECharts
-├─ pipelines/           데이터 수집·병합 스크립트
-├─ analysis/            검증 스크립트 (결과는 analysis/results/)
-├─ data/
-│  ├─ raw/nyc311/       뉴욕 311 브롱크스 월별 원본 (2016-01 ~ 2026-10)
-│  ├─ raw/weather/      Open-Meteo 일별 기상 (2016-01-01 ~ 2026-10-13)
-│  ├─ processed/        병합 결과
-│  └─ artifacts/        사전 계산 결과 (기준일 145개, 약 3MB)
-└─ docs/                기획·검증·설계 문서
-```
-
-`data/raw`, `data/processed`, `data/artifacts`의 데이터 파일은 git에 넣지 않습니다.
-
-## 실행
-
-### 처음 한 번
-```bash
-brew install uv libomp      # uv(파이썬 관리), libomp(LightGBM용)
-uv sync                     # Python 3.12 가상환경과 패키지 설치
-cd frontend && npm install && cd ..
-uv run python -m engine.build   # 사전 계산 (약 3분). 끝에 시연 시나리오를 리허설 표와 대조
-```
-
-### 개발 모드 (화면 수정이 바로 반영됨)
-```bash
-uv run uvicorn app.main:app --app-dir backend --reload    # API: http://127.0.0.1:8000/docs
-cd frontend && npm run dev                                 # 화면: http://localhost:5173
-```
-
-### 시연 (서버 하나로 실행, 인터넷 없이 동작)
-```bash
-cd frontend && npm run build && cd ..
-uv run uvicorn app.main:app --app-dir backend               # http://127.0.0.1:8000
-```
-화면 오른쪽 위 **시연 모드** 버튼을 누르면 평상시 → 폭염 → 블리자드 → 봄철 도로 파손 → 집중관리 순서로 진행합니다.
-
-### 테스트·검사
-```bash
-uv run pytest -q && uv run ruff check .                    # 계산 규칙·API
-cd frontend && npm test && npm run lint && npm run build    # 화면 (타입 검사 포함)
-cd frontend && npm run e2e                                  # 시연 화면 점검 (Playwright, 아래 설명)
-cd frontend && npm run gen:api                              # API 응답 형식을 바꾼 뒤 TypeScript 타입 다시 만들기
-```
-
-`npm run e2e`는 시연 때와 같은 구성(서버 하나, 8000번)으로 최신 화면과 시연 5단계를 차례로 열어, 단계마다 콘솔 오류·외부 주소 요청이 없는지, 핵심 지표 6칸과 패널 5개가 그려지는지, "불러오기 실패"가 없는지, 차트 2개의 크기가 0이 아닌지, 남색 띠에 시나리오 제목이 나오는지 확인합니다. 시연 막대의 "다음 단계" 버튼과 부서 선택(환경보호국 → 주소에 `agency=DEP`)도 눌러 봅니다. 기준일 창은 목록에서 날짜를 고르거나 기간 날짜를 바꿀 땐 열려 있고, 최신·시나리오를 고르면 닫히는지도 확인합니다. 단계별 전체 화면(1440×900)은 `frontend/e2e-screens/`에 저장됩니다(git 제외). 7일 기상 예보 띠를 눌러 특보 있는 날은 과거 7년 표가, 없는 날은 예보만 나오는지, 띠를 지난 7일로 넘기면 관측 날씨가 나오는지, 모바일 폭(390px)에서 띠 8칸이 화면 안에 들어가는지도 확인합니다. 8000번이 아닌 서버로 점검하려면 `E2E_PORT=8001 npm run e2e`처럼 포트를 지정합니다.
-- 처음 한 번: `cd frontend && npx playwright install chromium` (점검용 브라우저. 이후에는 인터넷 없이 동작)
-- 8000번에 서버가 이미 떠 있으면 그 서버를 쓰고, 없으면 직접 띄웠다가 점검이 끝나면 끕니다.
-- 빌드된 화면(`frontend/dist`)을 확인하므로 화면 코드를 고쳤다면 `npm run build`를 먼저 하세요. 사전 계산 결과(`data/artifacts`)나 화면 빌드가 없으면 할 일을 알려 주고 건너뜁니다.
-
-## 데이터 다시 만들기
-
-```bash
-# 뉴욕 311 (이미 받은 달은 건너뜀)
-uv run python pipelines/fetch_nyc311.py --start 2016-01-01 --end 2026-10-13 --borough BRONX \
-    --agency DSNY DEP DOT DOB DOHMH DPR DCWP DCA DHS
-# 기상
-uv run python pipelines/fetch_openmeteo.py --start 2016-01-01 --end 2026-10-13
-# 병합 (월별 폴더를 그대로 읽음)
-uv run python pipelines/merge_weather.py
-# 과거 예보 기록 (경보 검증·과거 시점 재현용)
-uv run python pipelines/fetch_openmeteo_forecasts.py --start 2022-01-01 --end 2026-10-12
-# 시간별 관측·예보(1~7일 전, 날씨 코드·전운량 포함), 미국 단위 (NWS 특보 기준 계산·예보 띠용)
-uv run python pipelines/fetch_openmeteo_hourly.py --start 2016-01-01 --end 2026-10-19 --forecast-start 2022-01-01
-# 실제 발표된 미국 기상청(NWS) 특보 기록 (IEM 보관소, 브롱크스)
-uv run python pipelines/fetch_nws_alerts.py --start 2016-01-01 --end 2026-10-20
-```
-
-## 검증 다시 실행하기
-
-```bash
-uv run python analysis/build_complaint_features.py   # 민원 1건별 분석 변수 (먼저 실행)
-uv run python analysis/verify_risk.py                # 장기처리 위험 모델, 매트릭스 세로축 (약 10분)
-uv run python analysis/verify_matrix_axis.py         # 세로축 대안, 사분면 기준
-uv run python analysis/verify_short_term.py          # 단기 건수 예측, 관측 기상 경보
-uv run python analysis/verify_short_term_issue.py    # 이슈 단위 기상 효과, 강도별 경보
-uv run python analysis/verify_forecast_alerts.py     # 실제 예보 기반 경보
-uv run python analysis/verify_capacity.py            # 처리능력·적체 전환율
-uv run python analysis/verify_nws_alerts.py          # 미국 기상청(NWS) 특보 기준 경보
-uv run python analysis/verify_complementarity.py     # 과부하·지원 가능 부서 동시 발생
-uv run python analysis/verify_matrix_y_stability.py  # 매트릭스 세로축 후보 안정성
-uv run python analysis/verify_alert_uplift.py 3      # 기상 특보 영향 부서 규칙 (1·2는 건수 보정 시험)
-uv run python analysis/rehearsal_scenarios.py       # 시연 시나리오 4개 재현, 매트릭스 그림 docs/rehearsal/
-uv run python analysis/verify_weather_events.py     # 기상 사건별 영향 기간·민원 처리 현황 (예보 띠·모달 설계)
-uv run python analysis/verify_forecast_strip.py     # 7일 예보 띠 정확도, 날씨 아이콘, 실제 NWS 특보와 비교
-```
-한 달·분기 예측과 이슈 빈도 검증 결과는 [docs/검증결과_10년.md](docs/검증결과_10년.md) ①·⑤를 보세요.
